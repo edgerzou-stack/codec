@@ -149,6 +149,31 @@
         如果 <code>&lambda;</code> 较小（即看重画质），算法会最终确定偏移量为 <strong>4</strong>；如果 <code>&lambda;</code> 很大（码率吃紧，大于 8），则可能退化选择 <strong>3</strong>。代码中包含一个 <code>while (iterOffset != 0)</code> 的循环，会按照 4、3、2、1 的顺序一直尝试到 <strong>0</strong> 为止，最终选取整个过程中 Cost 最小的那一个。
     </div>
 
+    <h4 style="margin-top: 20px; color: var(--primary); font-size: 16px;">▶ 宏观代价汇总与 RDO 候选生成</h4>
+    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <p style="margin-top: 0;">在底层 C-Model 的 <code>rdoSaoUnitAll</code> 候选生成阶段，必须严格计算全模式代价。对于每一个起步带 \(k \in [0, 28]\)，其宏观代价 \(J_{BO}(k)\) 由两部分组成：</p>
+        <ol>
+            <li><strong>子带代价累加：</strong> 连续 4 个频带在微观迭代（即上文所述）中算出的独立最优代价 \(J_{band}(i)\) 之和。</li>
+            <li><strong>语法元素开销：</strong> 传输起步带位置 <code>sao_band_position</code> 所固定的 5 个 bit 消耗。</li>
+        </ol>
+        <p>严格公式表达如下：</p>
+        \[J_{BO}(k) = \left( \sum_{i=0}^{3} J_{band}(k+i) \right) + \lambda \times R_{pos}\]
+        <p>其中，由于 32 个带起步位置固定需要 5 bits 传输（\(2^5 = 32\)），因此 \(R_{pos} = 5\)。</p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
+            <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
+            假设 \(\lambda = 10\)，且滑动窗口移至 \(k = 17\)：<br>
+            - 已知连续 4 个子带的最优代价分别为：\(J_{band}(17) = -120\)，\(J_{band}(18) = -50\)，\(J_{band}(19) = -80\)，\(J_{band}(20) = -30\)。<br>
+            - 起步带位置编码开销：\(R_{pos} = 5\)。<br>
+            - 总代价计算遵循严格代入：<br>
+            <span style="color: #0277bd;">\(J_{BO}(17) = ((-120) + (-50) + (-80) + (-30)) + 10 \times 5 = -280 + 50 = -230\)</span>
+        </div>
+        
+        <p style="margin-bottom: 0; margin-top: 15px;">最终，编码器通过比较遍历选出使得 \(J_{BO}(k)\) 最小的起步带：</p>
+        \[subTypeIdx_{best} = \arg\min_{k \in [0, 28]} J_{BO}(k)\]
+        <p style="margin-bottom: 0;">选出的 \(subTypeIdx_{best}\) 及其对应的 4 个偏移量，即为当前 CTU 在 BO 模式下的最佳候选配置。</p>
+    </div>
+
     <h3>2.3 连续 4 个起步带 (subTypeIdx) 是如何确定的？(滑动窗口寻优)</h3>
     <p>虽然像素全域被划分为了 32 个 Band，但考虑到编码开销，SAO 规定每个 CTU <strong>最多只能选取连续的 4 个 Band</strong> 进行补偿。这 4 个连续 Band 的起步位置 (<code>subTypeIdx</code>) 是通过<strong>滑动窗口扫描</strong>决定的：</p>
     
@@ -321,30 +346,6 @@
         <strong>结论：</strong> 编码器首先全局完成 32 个频带的统计量 Binning，随后才进入 2.3 节的“滑动窗口”步骤。在窗口寻优期间，<strong>无需重复读取真实的图像像素</strong>，纯粹依赖统计槽内的累积数据即可计算全局 Cost。这一绝妙的时序设计极大地节省了硬件的内存访问带宽 (Memory Bandwidth)。
     </div>
 
-    <h3>2.5 BO 模式代价汇总与 RDO 候选生成</h3>
-    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <p style="margin-top: 0;">在底层 C-Model 的 <code>rdoSaoUnitAll</code> 候选生成阶段，必须严格计算全模式代价。对于每一个起步带 \(k \in [0, 28]\)，其宏观代价 \(J_{BO}(k)\) 由两部分组成：</p>
-        <ol>
-            <li><strong>子带代价累加：</strong> 连续 4 个频带在微观迭代（详见 <a href="#section-3" style="color: #7c3aed; font-weight: 500;">2.2 节</a>）中算出的独立最优代价 \(J_{band}(i)\) 之和。</li>
-            <li><strong>语法元素开销：</strong> 传输起步带位置 <code>sao_band_position</code> 所固定的 5 个 bit 消耗。</li>
-        </ol>
-        <p>严格公式表达如下：</p>
-        \[J_{BO}(k) = \left( \sum_{i=0}^{3} J_{band}(k+i) \right) + \lambda \times R_{pos}\]
-        <p>其中，由于 32 个带起步位置固定需要 5 bits 传输（\(2^5 = 32\)），因此 \(R_{pos} = 5\)。</p>
-
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
-            <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
-            假设 \(\lambda = 10\)，且滑动窗口移至 \(k = 17\)：<br>
-            - 已知连续 4 个子带的最优代价分别为：\(J_{band}(17) = -120\)，\(J_{band}(18) = -50\)，\(J_{band}(19) = -80\)，\(J_{band}(20) = -30\)。<br>
-            - 起步带位置编码开销：\(R_{pos} = 5\)。<br>
-            - 总代价计算遵循严格代入：<br>
-            <span style="color: #0277bd;">\(J_{BO}(17) = ((-120) + (-50) + (-80) + (-30)) + 10 \times 5 = -280 + 50 = -230\)</span>
-        </div>
-        
-        <p style="margin-bottom: 0; margin-top: 15px;">最终，编码器通过比较遍历选出使得 \(J_{BO}(k)\) 最小的起步带：</p>
-        \[subTypeIdx_{best} = \arg\min_{k \in [0, 28]} J_{BO}(k)\]
-        <p style="margin-bottom: 0;">选出的 \(subTypeIdx_{best}\) 及其对应的 4 个偏移量，即为当前 CTU 在 BO 模式下的最佳候选配置。</p>
-    </div>
 
     <h2>3. Edge Offset (EO - 边缘偏移) 模式</h2>
     <p>EO 模式利用像素间的局部空间梯度，比较当前像素与其邻居的大小关系，根据分类 (Class) 来补偿。</p>
@@ -633,11 +634,11 @@
         <li>计算位元消耗 <code>tempRate</code> 时，EO 的开销模型为 <code>ABS(offset) + 1</code> (除了边界修正)，比 BO 略少，因为 EO 绝对不需要传输偏移符号。</li>
     </ul>
 
-    <h3>3.4 EO 模式代价汇总与方向抉择</h3>
+    <h4 style="margin-top: 20px; color: var(--primary); font-size: 16px;">▶ 宏观代价汇总与方向抉择</h4>
     <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <p style="margin-top: 0;">与 BO 类似，在 <code>rdoSaoUnitAll</code> 阶段，必须计算出四种 EO 方向的宏观总代价。对于给定的方向 \(d \in \{0, 1, 2, 3\}\)（即水平、垂直、135度、45度），其总代价 \(J_{EO}(d)\) 由该方向下 4 个有效 Class 的微观代价累加，并加上方向语法的传输开销构成：</p>
         \[J_{EO}(d) = \left( \sum_{c=1}^{4} J_{class}(d, c) \right) + \lambda \times R_{dir}\]
-        <p>其中，\(J_{class}(d, c)\) 为在方向 \(d\) 下对 Class \(c\) 执行微观迭代求得的最优代价（详见 3.3 节）。由于在 SAO 语法树中，写入具体的 EO 方向通常需要额外的二进制位宽指示，因此 \(R_{dir}\) 代表方向标识位的固定开销（通常依赖于具体的熵编码上下文）。</p>
+        <p>其中，\(J_{class}(d, c)\) 为在方向 \(d\) 下对 Class \(c\) 执行微观迭代求得的最优代价（即上文所述）。由于在 SAO 语法树中，写入具体的 EO 方向通常需要额外的二进制位宽指示，因此 \(R_{dir}\) 代表方向标识位的固定开销（通常依赖于具体的熵编码上下文）。</p>
 
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
             <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
@@ -653,7 +654,7 @@
         <p style="margin-bottom: 0;">选出的 \(dir_{best}\) 及其关联的 4 个类别的偏移量，即为当前 CTU 在 EO 模式下的最佳候选配置。</p>
     </div>
 
-    <h3>3.5 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
+    <h3>3.4 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
     <div style="background: #fff; padding: 15px; border-left: 4px solid var(--accent); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         在 <code>rdoSaoUnitAll</code> 函数中，除了比较 BO 和 EO 选出的最佳候选外，编码器还会额外考察 <strong>相邻 Merge 模式</strong>：尝试 <code>Merge Left</code> (复用左侧 CTU 的所有 SAO 参数) 和 <code>Merge Up</code> (复用上方 CTU 参数)。由于无需写入具体模式和 offset，Merge 模式的宏观码率 <code>Rate</code> 极低，其总 Cost 极具竞争力。<br><br>
         <strong>终极抉择：</strong> 严格比较 <code>SAO_OFF</code> (不滤波)、<code>SAO_BO</code> (最佳候选)、<code>SAO_EO</code> (最佳候选)、<code>Merge Left</code> 和 <code>Merge Up</code> 的总代价。选择 Cost 最小的配置，作为整个 CTU 的终极模式并写入 <code>saoLcuParam</code>。
