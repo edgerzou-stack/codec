@@ -104,6 +104,19 @@
         如果该 index 命中了 RDO 选出的起步 `subTypeIdx` 后连续 4 个带中的一个，就会将对应的 <code>offset[i]</code> 加到像素上。
     </div>
 
+    <div class="mermaid">
+    graph TD
+        A["输入重建像素 (pixel)"] --> B["提取最高 5 位<br>band_index = pixel >> 3"]
+        B --> C{"band_index 是否命中补偿区间?<br>[subTypeIdx, subTypeIdx + 3]"}
+        C -- 是 (命中) --> D["计算数组索引<br>idx = band_index - subTypeIdx"]
+        D --> E["施加预设偏移量<br>pixel = pixel + offset[idx]"]
+        E --> F["溢出截断保护<br>pixel = Clip3(0, 255, pixel)"]
+        C -- 否 (未命中) --> G["跳过补偿<br>维持原值"]
+        F --> H["输出最终滤波像素"]
+        G --> H
+    </div>
+    <div class="diagram-caption">图 3：BO 模式单像素底层补偿逻辑流程图</div>
+
     <h3>2.2 偏移量 (Offset) 精确计算公式与举例</h3>
     <p>偏移量的确定分为“计算初始预估值”和“迭代寻优”两步 (参考源码 <code>estIterOffset</code>)：</p>
     <ul>
