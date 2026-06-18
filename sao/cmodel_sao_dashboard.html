@@ -225,7 +225,7 @@
             playBtn.addEventListener('click', () => {
                 if (isPlaying) return;
                 isPlaying = true;
-                playBtn.innerText = "正在打擂台扫描...";
+                playBtn.innerText = "正在执行 RDO 遍历扫描...";
                 playBtn.style.background = "#ff9800";
                 
                 scanIdx = 0;
@@ -286,12 +286,12 @@
     <p>在 C-Model 的代码中，这是一个由 <code>i</code> (从 0 遍历到 28) 控制的 <code>for</code> 循环。对于每个起步位置 <code>i</code>，编码器会将 <code>i, i+1, i+2, i+3</code> 这 4 个带独立算出来的最优代价 <code>tempCost</code> 加起来，最后挑选出总代价最小的那一组，将其起步位置记作 <code>subTypeIdx</code> 写入码流。</p>
 
     <div class="highlight" style="background-color: #e3f2fd; border-color: #2196f3; margin-top: 20px;">
-        <strong>🤔 深度拷问：为什么一定要挑 Cost 最小的？挑“包含像素最多”或“失真误差最大”的 4 个筐不行吗？</strong><br>
-        <p style="margin-top: 8px;">在 HEVC 标准下，为了节省码流，我们针对每个 CTU <strong>只能发射一次补偿“子弹”</strong>（即只能选定连续 4 个筐）。为了让这颗唯一的子弹价值最大化，必须依赖 <code>Cost = 失真 + &lambda; &times; 码率</code> 来算一笔经济账：</p>
+        <strong>🤔 架构推演：为什么必须选择 Cost 最小的子带组合？选择“包含像素最多”或“初始失真最大”的频带为何不是最优解？</strong><br>
+        <p style="margin-top: 8px;">在 HEVC 标准下，为了节省码流，我们针对每个 CTU <strong>只能执行一次连续带位的全局补偿</strong>（即只能选定连续的 4 个频带）。为了最大化全局编码效率，必须依赖 <code>Cost = 失真 + &lambda; &times; 码率</code> 进行严格的率失真代价计算 (RDO)：</p>
         <ul style="margin-bottom: 0;">
-            <li style="margin-bottom: 5px;">❌ <strong>如果单挑“像素最多”的筐：</strong> 比如一大片完美的平滑蓝天。由于它本身压缩得很好，失真几乎为 0（无需修补）。你强行选中它，不仅对画质无提升，还白白在码流里浪费了 bit 去传输 <code>Offset=0</code>，纯属得不偿失。</li>
-            <li style="margin-bottom: 5px;">❌ <strong>如果单挑“失真最大”的筐：</strong> 比如一小撮极其复杂的边缘毛刺。虽然修补它能降不少失真，但其所需的 Offset 绝对值极大（比如 15）。在底层编码中，传输 15 需要非常长的二进制位宽（Rate 暴增）。你花费了巨大的流量代价，却只救活了寥寥几个像素，从整部电影的视角来看是一笔亏本买卖。</li>
-            <li>✅ <strong>挑“Cost 最小”的筐：</strong> 在打擂台时，Cost 下降得最多，本质上是在寻找 <strong>“投资回报率 (ROI)” 最高</strong>的 4 个筐。这意味着这 4 个筐完美满足了：<strong>受众广</strong>（像素足够多）、<strong>有提升空间</strong>（确实存在可修补失真）、且 <strong>维修成本低</strong>（所需的 Offset 参数小，极省码率）。这就是“花最少 bit 的钱，办最大画质提升的事”！</li>
+            <li style="margin-bottom: 5px;">❌ <strong>若仅选择“像素最多”的频带：</strong> 比如一大片完美的平滑蓝天。由于它本身压缩得很好，失真几乎为 0（无需修补）。你强行选中它，不仅对画质无提升，还白白在码流里浪费了 bit 去传输 <code>Offset=0</code>，会导致编码效率大幅劣化。</li>
+            <li style="margin-bottom: 5px;">❌ <strong>若仅选择“初始失真最大”的频带：</strong> 例如针对少数高频异常点进行补偿。虽然能降低局部失真，但其所需的 Offset 绝对值极大（比如 15）。在 CABAC 熵编码中，传输巨大的 Offset 会急剧消耗二进制位宽（Rate 暴增）。在极高的比特开销下，仅对极少数异常像素产生了修复效果，从全局视角来看会导致编码效率严重下降。</li>
+            <li>✅ <strong>选择“Cost 最小”的频带组合：</strong> 在率失真代价比较时，Cost 最小意味着找到了 <strong>ROI (率失真收益) 最高</strong> 的子带配置。该配置完美平衡了：<strong>覆盖率高</strong>（适用像素多）、<strong>补偿收益大</strong>（失真下降明显）、且 <strong>编码成本低</strong>（Offset 参数小，极省码率）。即在最小化比特开销 (Bit Rate) 的前提下实现最大的失真改善 (Distortion Reduction)！</li>
         </ul>
     </div>
 
@@ -301,11 +301,11 @@
         <strong>🚀 C-Model 真实执行时序 (一次过检，全盘统计)：</strong><br>
         在统计阶段的 <code>calcSaoStatsCuOrg</code> 函数中，编码器只对 CTU 进行 <strong>唯一的一遍</strong> 像素扫描。
         <ol style="margin-bottom: 5px;">
-            <li><strong>并行分拣：</strong> 拿到一个像素，比如亮度 100，直接提取前 5 个 bit (<code>100 >> 3 = 12</code>)，就知道它属于 Band 12。</li>
-            <li><strong>装进篓子：</strong> 直接把它扔进 Band 12 的统计槽里，让 <code>count[12]++</code>，并累加它的失真误差。</li>
-            <li><strong>瞬间查表：</strong> 这一遍扫完后，32 个 Band 各自装了多少个像素、总误差是多少，就已经 <strong>全部一次性统计完毕</strong>。</li>
+            <li><strong>位移映射：</strong> 读取像素亮度（例如 100），提取最高 5 位 (<code>100 >> 3 = 12</code>) 以确定目标频带 Band 12。</li>
+            <li><strong>直方图装箱 (Binning)：</strong> 将该像素分配至 Band 12 的统计槽位，更新像素计数 <code>count[12]++</code>，并累加误差。</li>
+            <li><strong>单遍收敛：</strong> 扫描结束后，32 个亮度频带的像素分布及其累积误差 <strong>全部一次性统计完成</strong>。</li>
         </ol>
-        <strong>结论：</strong> 编码器是先“全局分拣统计所有带的像素个数（32个篓子全部装满）”，然后再进入 2.3 节的“滑动窗口”步骤。在滑动窗口时，<strong>完全不需要再去触碰任何真实的图像像素</strong>，纯粹靠读取篓子里的统计数据（查表）就能算出总 Cost。这一绝妙的时序设计极大地节省了硬件和算法的内存访问带宽（Memory Bandwidth）。
+        <strong>结论：</strong> 编码器首先全局完成 32 个频带的统计量 Binning，随后才进入 2.3 节的“滑动窗口”步骤。在窗口寻优期间，<strong>无需重复读取真实的图像像素</strong>，纯粹依赖统计槽内的累积数据即可计算全局 Cost。这一绝妙的时序设计极大地节省了硬件的内存访问带宽 (Memory Bandwidth)。
     </div>
 
     <h2>3. Edge Offset (EO - 边缘偏移) 模式</h2>
@@ -359,19 +359,19 @@
     </div>
 
     <h3>3.3 扫描与分类统计：Class Count 数量是怎么诞生的？和什么有关？</h3>
-    <p>在这个 CTU 中找出的 Class 1 像素的数量（代码中的 <code>count</code>），是一个动态统计结果，它完全取决于当前图像 <strong>真实的物理纹理复杂度</strong>。</p>
-    <p>编码器会使用一个“放大镜”地毯式扫描整个 CTU：</p>
+    <p>在这个 CTU 中找出的 Class 1 像素的数量（对应 <code>count</code>），完全取决于当前空域的 <strong>物理纹理复杂度</strong>。</p>
+    <p>算法将使用 3x3 模板或一维滑动窗口对像素序列进行逐点特征检测：</p>
     <ul>
-        <li><strong>完全平坦的区域（例如蓝天）：</strong> 几乎所有像素都和邻居完全一样（<code>C == L</code> 且 <code>C == R</code>），全被归为 Class 0，此时 Class 1 的 <code>count</code> 会是 <strong>0</strong>。</li>
-        <li><strong>纹理复杂的区域（如草地、文字）或垂直斑马纹：</strong> 亮度剧烈起伏，扫描时会命中大量微观的“坑洼”，此时 Class 1 的 <code>count</code> 可能会非常庞大（如 200、500 甚至更多）。</li>
+        <li><strong>极低频区域（例如平滑背景）：</strong> 像素梯度假如为 0（<code>C == L</code> 且 <code>C == R</code>），将被分类为 Class 0（跳过类），此时 Class 1 的 <code>count</code> 趋近于 <strong>0</strong>。</li>
+        <li><strong>高频区域（如草地纹理、锐利边缘）：</strong> 亮度剧烈起伏，特征检测会频繁命中“局部极小值/极大值”，此时边缘类别的 <code>count</code> 可能会显著激增。</li>
     </ul>
-    <p>总结来说，这个数量就是当前宏块的 <strong>“画面复杂度体检报告”</strong>。下面是一个 <strong>EO_0 (水平方向)</strong> 的地毯式扫描动态演示：</p>
+    <p>总结而言，该计数器本质上是当前 CTU 的 <strong>“空间纹理特征分布直方图”</strong>。以下为 <strong>EO_0 (水平方向)</strong> 像素特征提取的动态演示：</p>
 
     <div class="animation-container" style="background: #1e1e1e; padding: 20px; border-radius: 8px; color: #fff; margin: 20px 0; font-family: 'Consolas', monospace; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <div>
-                <h4 style="margin: 0; color: #4fc3f7;">[▶ 互动演示] EO_0 (水平方向) 像素级地毯式扫描</h4>
-                <p style="margin: 5px 0 0 0; font-size: 13px; color: #888;">* 图注：点击按钮，观察 1x3 窗口如何遍历寻找“谷底”，体检报告 count 是如何累加的。</p>
+                <h4 style="margin: 0; color: #4fc3f7;">[▶ 互动演示] EO_0 (水平方向) 像素特征逐点扫描与分类</h4>
+                <p style="margin: 5px 0 0 0; font-size: 13px; color: #888;">* 图注：点击按钮，观察 1x3 窗口如何遍历并匹配“局部极小值”，特征直方图的 count 是如何累加的。</p>
                 <div style="margin-top: 10px; padding: 10px; background: rgba(79,195,247,0.1); border-left: 4px solid #4fc3f7; font-size: 13px; line-height: 1.6;">
                     <strong style="color:#4fc3f7;">💡 图例说明 (与 BO 动画的区别)：</strong><br>
                     1. 这里的每一个方块代表 <strong>1 个真实的物理像素点</strong>（这是一个 6x6 的微缩版 CTU）。<br>
@@ -405,10 +405,10 @@
                     <div id="eoCondition" style="color: #aaa; font-size: 14px; min-height: 20px;">等待扫描...</div>
                 </div>
                 <div style="background: #2e7d32; padding: 15px; border-radius: 4px; flex-grow: 1; transition: background 0.3s;">
-                    <div style="color: #a5d6a7; font-size: 12px; margin-bottom: 10px;">📊 CTU 纹理统计体检报告</div>
+                    <div style="color: #a5d6a7; font-size: 12px; margin-bottom: 10px;">📊 CTU 纹理特征分布直方图</div>
                     <div style="font-size: 14px; margin-bottom: 5px;">平坦区域 (Class 0): <span id="cnt0" style="float: right;">0</span></div>
                     <div style="font-size: 16px; font-weight: bold; color: #ffeb3b; margin-bottom: 5px; border-bottom: 1px dashed #555; padding-bottom: 5px;">
-                        谷底 (Class 1) 计数: <span id="cnt1" style="float: right; font-size: 24px; transition: transform 0.2s;">0</span>
+                        局部极小 (Class 1) 计数: <span id="cnt1" style="float: right; font-size: 24px; transition: transform 0.2s;">0</span>
                     </div>
                     <div style="font-size: 14px; margin-bottom: 5px; color: #ccc;">其他边缘 (Class 2/3/4): <span id="cntOther" style="float: right;">0</span></div>
                 </div>
@@ -432,10 +432,10 @@
             // 构建一个伪造的 6x6 像素块用于演示
             const pixels = [
                 [120, 120, 120, 120, 120, 120], // 平坦行
-                [130, 110, 90,  110, 140, 150], // 一个深坑 (90)
-                [100, 120, 100, 120, 100, 120], // 密集起伏 (斑马纹)
-                [50,  150, 50,  150, 50,  150], // 强锯齿起伏
-                [200, 200, 180, 180, 190, 200], // 平坦中带个坑
+                [130, 110, 90,  110, 140, 150], // 一个局部极小值 (90)
+                [100, 120, 100, 120, 100, 120], // 密集高频起伏 (斑马纹)
+                [50,  150, 50,  150, 50,  150], // 高强度锯齿边缘
+                [200, 200, 180, 180, 190, 200], // 平缓区存在孤立极小值
                 [100, 100, 100, 100, 100, 100]  // 平坦行
             ];
             
@@ -470,7 +470,7 @@
             playBtn.addEventListener('click', () => {
                 if (isPlaying) return;
                 isPlaying = true;
-                playBtn.innerText = "🔍 地毯式扫描中...";
+                playBtn.innerText = "🔍 逐点特征检测中...";
                 playBtn.style.background = "#ff9800";
                 scanner.style.display = "block";
                 
@@ -493,7 +493,7 @@
                     if (i >= scanSequence.length) {
                         clearInterval(interval);
                         isPlaying = false;
-                        playBtn.innerText = "重新生成体检报告";
+                        playBtn.innerText = "重新生成特征分布";
                         playBtn.style.background = "#4caf50";
                         scanner.style.display = "none";
                         cond.innerText = "✅ 扫描完成！最终计入 count 变量。";
