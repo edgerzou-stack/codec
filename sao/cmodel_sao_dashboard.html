@@ -308,7 +308,7 @@
         </ul>
     </div>
 
-    <h3>2.5 架构级执行时序：BO 的像素分布统计是如何进行的？</h3>
+    <h3>2.4 架构级执行时序：BO 的像素分布统计是如何进行的？</h3>
     <p>在理解了滑动窗口和 RDO 抉择后，我们必须理清底层 C-Model 真实的执行时序：编码器 <strong>绝对不是</strong> 先选定某一个 Band，然后再去全图数一遍有多少像素落在这个 Band 里。</p>
     <div class="highlight" style="background-color: #f1f8e9; border-color: #8bc34a;">
         <strong>🚀 C-Model 真实执行时序 (一次过检，全盘统计)：</strong><br>
@@ -319,6 +319,11 @@
             <li><strong>单遍收敛：</strong> 扫描结束后，32 个亮度频带的像素分布及其累积误差 <strong>全部一次性统计完成</strong>。</li>
         </ol>
         <strong>结论：</strong> 编码器首先全局完成 32 个频带的统计量 Binning，随后才进入 2.3 节的“滑动窗口”步骤。在窗口寻优期间，<strong>无需重复读取真实的图像像素</strong>，纯粹依赖统计槽内的累积数据即可计算全局 Cost。这一绝妙的时序设计极大地节省了硬件的内存访问带宽 (Memory Bandwidth)。
+    </div>
+
+    <h3>2.5 BO 模式代价汇总与 RDO 候选生成</h3>
+    <div style="background: #fff; padding: 15px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        在生成了各个频带的最优偏移量后，编码器将尝试 32 种可能的起步带 (subTypeIdx)，将连续 4 个带的最佳微观代价 <code>tempCost</code> <strong>累加</strong>，选出总代价最小的起步带组合，作为当前 CTU 在 BO 模式下的最佳候选配置。
     </div>
 
     <h2>3. Edge Offset (EO - 边缘偏移) 模式</h2>
@@ -590,22 +595,15 @@
         <li>计算位元消耗 <code>tempRate</code> 时，EO 的开销模型为 <code>ABS(offset) + 1</code> (除了边界修正)，比 BO 略少，因为 EO 绝对不需要传输偏移符号。</li>
     </ul>
 
-    <h2>4. 率失真优化 (RDO) 最佳模式抉择</h2>
-    <p>在 <code>rdoSaoUnitAll</code> 函数中，编码器会遍历所有可能的模式，并最终抉择出使得 <strong>RD Cost</strong> 最小的模式。其抉择逻辑如下：</p>
+    <h3>3.5 EO 模式代价汇总与方向抉择</h3>
+    <div style="background: #fff; padding: 15px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        对于四种方向（水平、垂直、135度、45度），编码器将分别把该方向下 4 个 Class 的微观 <code>tempCost</code> <strong>累加</strong>，得出四种方向各自的总代价，并选取其中 Cost 最小的一个方向，作为当前 CTU 在 EO 模式下的最佳候选配置。
+    </div>
 
-    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--accent); margin: 20px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <h4 style="color: var(--accent); margin-top: 0;">CTU 级打擂台流程 (C-Model 实现)</h4>
-        <ol>
-            <li><strong>前置基础数据 (calcSaoStatsCuOrg)</strong>：CTU 在进入宏观抉择前，已经利用前文提到的微观迭代算法，独立求出了各个 BO 频带和 4 种 EO 方向各 Class 的最佳 <code>offset</code> 及其对应的最小代价 <code>tempCost</code>。</li>
-            <li><strong>汇总各模式的总代价</strong>：
-                <ul>
-                    <li><strong>BO 的总代价</strong>：尝试 32 种可能的起步带 (subTypeIdx)，将连续 4 个带的最佳微观 <code>tempCost</code> <strong>累加</strong>，选出总代价最小的起步带组合。</li>
-                    <li><strong>EO 的总代价</strong>：分别针对水平、垂直、135度、45度四种方向，将该方向下 4 个 Class 的微观 <code>tempCost</code> <strong>累加</strong>，得出四种方向各自的总代价。</li>
-                </ul>
-            </li>
-            <li><strong>考察相邻 Merge 模式</strong>：额外尝试 <code>Merge Left</code> (直接复用左侧 CTU 算好的所有参数) 和 <code>Merge Up</code> (复用上方 CTU 参数)。Merge 模式因为不需要写入具体的 offset 和模式参数，其宏观 <code>Rate</code> 极低，总 Cost 往往极具竞争力。</li>
-            <li><strong>终极抉择</strong>：比较 SAO_OFF (不滤波)、SAO_BO (最佳连续4带组合)、SAO_EO (4个方向中最佳的那个)、Merge Left 和 Merge Up 的总代价，选择 Cost 最小的配置，作为整个 CTU 的终极模式并写入 <code>saoLcuParam</code>。</li>
-        </ol>
+    <h3>3.6 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
+    <div style="background: #fff; padding: 15px; border-left: 4px solid var(--accent); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        在 <code>rdoSaoUnitAll</code> 函数中，除了比较 BO 和 EO 选出的最佳候选外，编码器还会额外考察 <strong>相邻 Merge 模式</strong>：尝试 <code>Merge Left</code> (复用左侧 CTU 的所有 SAO 参数) 和 <code>Merge Up</code> (复用上方 CTU 参数)。由于无需写入具体模式和 offset，Merge 模式的宏观码率 <code>Rate</code> 极低，其总 Cost 极具竞争力。<br><br>
+        <strong>终极抉择：</strong> 严格比较 <code>SAO_OFF</code> (不滤波)、<code>SAO_BO</code> (最佳候选)、<code>SAO_EO</code> (最佳候选)、<code>Merge Left</code> 和 <code>Merge Up</code> 的总代价。选择 Cost 最小的配置，作为整个 CTU 的终极模式并写入 <code>saoLcuParam</code>。
     </div>
 
 </div>
