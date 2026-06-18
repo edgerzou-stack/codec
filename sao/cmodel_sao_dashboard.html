@@ -322,8 +322,28 @@
     </div>
 
     <h3>2.5 BO 模式代价汇总与 RDO 候选生成</h3>
-    <div style="background: #fff; padding: 15px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        在生成了各个频带的最优偏移量后，编码器将尝试 32 种可能的起步带 (subTypeIdx)，将连续 4 个带的最佳微观代价 <code>tempCost</code> <strong>累加</strong>，选出总代价最小的起步带组合，作为当前 CTU 在 BO 模式下的最佳候选配置。
+    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <p style="margin-top: 0;">在底层 C-Model 的 <code>rdoSaoUnitAll</code> 候选生成阶段，必须严格计算全模式代价。对于每一个起步带 \(k \in [0, 28]\)，其宏观代价 \(J_{BO}(k)\) 由两部分组成：</p>
+        <ol>
+            <li><strong>子带代价累加：</strong> 连续 4 个频带在微观迭代（详见 <a href="#section-3" style="color: #7c3aed; font-weight: 500;">2.2 节</a>）中算出的独立最优代价 \(J_{band}(i)\) 之和。</li>
+            <li><strong>语法元素开销：</strong> 传输起步带位置 <code>sao_band_position</code> 所固定的 5 个 bit 消耗。</li>
+        </ol>
+        <p>严格公式表达如下：</p>
+        \[J_{BO}(k) = \left( \sum_{i=0}^{3} J_{band}(k+i) \right) + \lambda \times R_{pos}\]
+        <p>其中，由于 32 个带起步位置固定需要 5 bits 传输（\(2^5 = 32\)），因此 \(R_{pos} = 5\)。</p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
+            <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
+            假设 \(\lambda = 10\)，且滑动窗口移至 \(k = 17\)：<br>
+            - 已知连续 4 个子带的最优代价分别为：\(J_{band}(17) = -120\)，\(J_{band}(18) = -50\)，\(J_{band}(19) = -80\)，\(J_{band}(20) = -30\)。<br>
+            - 起步带位置编码开销：\(R_{pos} = 5\)。<br>
+            - 总代价计算遵循严格代入：<br>
+            <span style="color: #0277bd;">\(J_{BO}(17) = ((-120) + (-50) + (-80) + (-30)) + 10 \times 5 = -280 + 50 = -230\)</span>
+        </div>
+        
+        <p style="margin-bottom: 0; margin-top: 15px;">最终，编码器通过比较遍历选出使得 \(J_{BO}(k)\) 最小的起步带：</p>
+        \[subTypeIdx_{best} = \arg\min_{k \in [0, 28]} J_{BO}(k)\]
+        <p style="margin-bottom: 0;">选出的 \(subTypeIdx_{best}\) 及其对应的 4 个偏移量，即为当前 CTU 在 BO 模式下的最佳候选配置。</p>
     </div>
 
     <h2>3. Edge Offset (EO - 边缘偏移) 模式</h2>
@@ -615,8 +635,23 @@
     </ul>
 
     <h3>3.5 EO 模式代价汇总与方向抉择</h3>
-    <div style="background: #fff; padding: 15px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        对于四种方向（水平、垂直、135度、45度），编码器将分别把该方向下 4 个 Class 的微观 <code>tempCost</code> <strong>累加</strong>，得出四种方向各自的总代价，并选取其中 Cost 最小的一个方向，作为当前 CTU 在 EO 模式下的最佳候选配置。
+    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <p style="margin-top: 0;">与 BO 类似，在 <code>rdoSaoUnitAll</code> 阶段，必须计算出四种 EO 方向的宏观总代价。对于给定的方向 \(d \in \{0, 1, 2, 3\}\)（即水平、垂直、135度、45度），其总代价 \(J_{EO}(d)\) 由该方向下 4 个有效 Class 的微观代价累加，并加上方向语法的传输开销构成：</p>
+        \[J_{EO}(d) = \left( \sum_{c=1}^{4} J_{class}(d, c) \right) + \lambda \times R_{dir}\]
+        <p>其中，\(J_{class}(d, c)\) 为在方向 \(d\) 下对 Class \(c\) 执行微观迭代求得的最优代价（详见 3.4 节）。由于在 SAO 语法树中，写入具体的 EO 方向通常需要额外的二进制位宽指示，因此 \(R_{dir}\) 代表方向标识位的固定开销（通常依赖于具体的熵编码上下文）。</p>
+
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
+            <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
+            假设 \(\lambda = 10\)，对 <strong>水平方向 (EO_0, 即 \(d=0\))</strong> 进行计算：<br>
+            - 扫描得出 4 个 Class 的最优代价分别为：\(J_{class}(0,1) = -150\)，\(J_{class}(0,2) = -20\)，\(J_{class}(0,3) = -90\)，\(J_{class}(0,4) = -60\)。<br>
+            - 方向语法位宽估计开销：\(R_{dir} = 2\)。<br>
+            - 总代价计算遵循严格代入：<br>
+            <span style="color: #0277bd;">\(J_{EO}(0) = ((-150) + (-20) + (-90) + (-60)) + 10 \times 2 = -320 + 20 = -300\)</span>
+        </div>
+
+        <p style="margin-bottom: 0; margin-top: 15px;">最终，编码器比较四种方向，选出使得 \(J_{EO}(d)\) 最小的最优方向：</p>
+        \[dir_{best} = \arg\min_{d \in \{0, 1, 2, 3\}} J_{EO}(d)\]
+        <p style="margin-bottom: 0;">选出的 \(dir_{best}\) 及其关联的 4 个类别的偏移量，即为当前 CTU 在 EO 模式下的最佳候选配置。</p>
     </div>
 
     <h3>3.6 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
