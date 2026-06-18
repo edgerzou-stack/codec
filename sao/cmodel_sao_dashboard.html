@@ -368,7 +368,7 @@
     </div>
     <div class="diagram-caption">图 4：EO 模式单像素底层补偿逻辑流程图</div>
     
-    <h3>3.1 EO 的四种方向</h3>
+    <h3>3.1 EO 的方向与边缘分类</h3>
     <div class="mermaid">
     graph TD
         A((当前像素 C))
@@ -378,7 +378,6 @@
         B4[EO_3: 45度] --> A
     </div>
     
-    <h3>3.2 边缘分类 (Edge Classes)</h3>
     <p>根据与前后两个像素（<code>p_left</code>, <code>p_right</code>）的大小比较，将边缘分为 4 种有效类和 1 个跳过类：</p>
     
     <div style="display: flex; flex-direction: column; align-items: center; margin: 15px 0;">
@@ -415,7 +414,7 @@
         如果在谷底算出了负偏移，说明数据是异常的噪点而非典型的量化失真，C-Model 会<strong>直接将 offset 强制归 0</strong>，放弃补偿。
     </div>
 
-    <h3>3.3 扫描与分类统计：Class Count 数量是怎么诞生的？和什么有关？</h3>
+    <h3>3.2 扫描与分类统计：Class Count 数量是怎么诞生的？和什么有关？</h3>
     <p>在这个 CTU 中找出的 Class 1 像素的数量（对应 <code>count</code>），完全取决于当前空域的 <strong>物理纹理复杂度</strong>。</p>
     <p>算法将使用 3x3 模板或一维滑动窗口对像素序列进行逐点特征检测：</p>
     <ul>
@@ -613,7 +612,7 @@
         });
     </script>
 
-    <h3>3.4 EO 偏移量精确计算与举例</h3>
+    <h3>3.3 EO 偏移量精确计算与举例</h3>
     <p>EO 偏移量的计算在 <code>estIterOffset</code> 中受到严格的符号约束，其数值通常很小，在 8-bit 视频中最大偏移除外被限制在 <code>[-7, 7]</code> 之间。</p>
 
     <div class="highlight" style="background-color: #f3e5f5; border-color: #ab47bc;">
@@ -634,11 +633,11 @@
         <li>计算位元消耗 <code>tempRate</code> 时，EO 的开销模型为 <code>ABS(offset) + 1</code> (除了边界修正)，比 BO 略少，因为 EO 绝对不需要传输偏移符号。</li>
     </ul>
 
-    <h3>3.5 EO 模式代价汇总与方向抉择</h3>
+    <h3>3.4 EO 模式代价汇总与方向抉择</h3>
     <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         <p style="margin-top: 0;">与 BO 类似，在 <code>rdoSaoUnitAll</code> 阶段，必须计算出四种 EO 方向的宏观总代价。对于给定的方向 \(d \in \{0, 1, 2, 3\}\)（即水平、垂直、135度、45度），其总代价 \(J_{EO}(d)\) 由该方向下 4 个有效 Class 的微观代价累加，并加上方向语法的传输开销构成：</p>
         \[J_{EO}(d) = \left( \sum_{c=1}^{4} J_{class}(d, c) \right) + \lambda \times R_{dir}\]
-        <p>其中，\(J_{class}(d, c)\) 为在方向 \(d\) 下对 Class \(c\) 执行微观迭代求得的最优代价（详见 3.4 节）。由于在 SAO 语法树中，写入具体的 EO 方向通常需要额外的二进制位宽指示，因此 \(R_{dir}\) 代表方向标识位的固定开销（通常依赖于具体的熵编码上下文）。</p>
+        <p>其中，\(J_{class}(d, c)\) 为在方向 \(d\) 下对 Class \(c\) 执行微观迭代求得的最优代价（详见 3.3 节）。由于在 SAO 语法树中，写入具体的 EO 方向通常需要额外的二进制位宽指示，因此 \(R_{dir}\) 代表方向标识位的固定开销（通常依赖于具体的熵编码上下文）。</p>
 
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
             <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
@@ -654,7 +653,7 @@
         <p style="margin-bottom: 0;">选出的 \(dir_{best}\) 及其关联的 4 个类别的偏移量，即为当前 CTU 在 EO 模式下的最佳候选配置。</p>
     </div>
 
-    <h3>3.6 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
+    <h3>3.5 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
     <div style="background: #fff; padding: 15px; border-left: 4px solid var(--accent); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
         在 <code>rdoSaoUnitAll</code> 函数中，除了比较 BO 和 EO 选出的最佳候选外，编码器还会额外考察 <strong>相邻 Merge 模式</strong>：尝试 <code>Merge Left</code> (复用左侧 CTU 的所有 SAO 参数) 和 <code>Merge Up</code> (复用上方 CTU 参数)。由于无需写入具体模式和 offset，Merge 模式的宏观码率 <code>Rate</code> 极低，其总 Cost 极具竞争力。<br><br>
         <strong>终极抉择：</strong> 严格比较 <code>SAO_OFF</code> (不滤波)、<code>SAO_BO</code> (最佳候选)、<code>SAO_EO</code> (最佳候选)、<code>Merge Left</code> 和 <code>Merge Up</code> 的总代价。选择 Cost 最小的配置，作为整个 CTU 的终极模式并写入 <code>saoLcuParam</code>。
