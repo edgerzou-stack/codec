@@ -634,13 +634,19 @@
         <li>计算位元消耗 <code>tempRate</code> 时，EO 的开销模型为 <code>ABS(offset) + 1</code> (除了边界修正)，比 BO 略少，因为 EO 绝对不需要传输偏移符号。</li>
     </ul>
 
-    <h4 style="margin-top: 20px; color: var(--primary); font-size: 16px;">▶ 宏观代价汇总与方向抉择</h4>
-    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <p style="margin-top: 0;">与 BO 类似，在 <code>rdoSaoUnitAll</code> 阶段，必须计算出四种 EO 方向的宏观总代价。对于给定的方向 \(d \in \{0, 1, 2, 3\}\)（即水平、垂直、135度、45度），其总代价 \(J_{EO}(d)\) 由该方向下 4 个有效 Class 的微观代价累加，并加上方向语法的传输开销构成：</p>
-        \[J_{EO}(d) = \left( \sum_{c=1}^{4} J_{class}(d, c) \right) + \lambda \times R_{dir}\]
-        <p>其中，\(J_{class}(d, c)\) 为在方向 \(d\) 下对 Class \(c\) 执行微观迭代求得的最优代价（即上文所述）。由于在 SAO 语法树中，写入具体的 EO 方向通常需要额外的二进制位宽指示，因此 \(R_{dir}\) 代表方向标识位的固定开销（通常依赖于具体的熵编码上下文）。</p>
+    <h3>3.4 EO 方向抉择与 CTU 级全局统筹 (RDO 终极决战)</h3>
+    <p>在底层 C-Model 的 <code>rdoSaoUnitAll</code> 阶段，编码器不仅要选出最佳的 EO 方向，还要将其与 BO 模式、关闭滤波 (OFF)、以及直接复用相邻块 (Merge) 的代价进行终极对决。</p>
 
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-top: 15px; font-family: monospace; font-size: 13.5px;">
+    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--primary); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h4 style="color: var(--primary); margin-top: 0;">第一阶段：EO 内部方向对决</h4>
+        <p>对于给定的方向 \(d \in \{0, 1, 2, 3\}\)，其总代价 \(J_{EO}(d)\) 由该方向下 4 个有效 Class 的微观代价累加，并加上方向语法的传输开销构成：</p>
+        \[J_{EO}(d) = \left( \sum_{c=1}^{4} J_{class}(d, c) \right) + \lambda \times R_{dir}\]
+        <ul style="margin-bottom: 10px;">
+            <li>\(J_{class}(d, c)\)：在方向 \(d\) 下对 Class \(c\) 执行迭代求得的最优微观代价（即上文所述）。</li>
+            <li>\(R_{dir}\)：写入该 EO 方向所需的二进制标识位开销。</li>
+        </ul>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 4px; margin-bottom: 15px; font-family: monospace; font-size: 13.5px;">
             <strong style="color: #475569;">数值推演实例 (Numerical Example):</strong><br>
             假设 \(\lambda = 10\)，对 <strong>水平方向 (EO_0, 即 \(d=0\))</strong> 进行计算：<br>
             - 扫描得出 4 个 Class 的最优代价分别为：\(J_{class}(0,1) = -150\)，\(J_{class}(0,2) = -20\)，\(J_{class}(0,3) = -90\)，\(J_{class}(0,4) = -60\)。<br>
@@ -649,15 +655,37 @@
             <span style="color: #0277bd;">\(J_{EO}(0) = ((-150) + (-20) + (-90) + (-60)) + 10 \times 2 = -320 + 20 = -300\)</span>
         </div>
 
-        <p style="margin-bottom: 0; margin-top: 15px;">最终，编码器比较四种方向，选出使得 \(J_{EO}(d)\) 最小的最优方向：</p>
-        \[dir_{best} = \arg\min_{d \in \{0, 1, 2, 3\}} J_{EO}(d)\]
-        <p style="margin-bottom: 0;">选出的 \(dir_{best}\) 及其关联的 4 个类别的偏移量，即为当前 CTU 在 EO 模式下的最佳候选配置。</p>
+        <p style="margin-bottom: 0;">通过比较选出使得 \(J_{EO}(d)\) 最小的方向，记为 <strong>\(EO_{best}\)</strong>，其代价值记为 <strong>\(J_{EO\_best}\)</strong>。</p>
     </div>
 
-    <h3>3.4 CTU 级模式全局统筹 (包含 Merge 模式)</h3>
-    <div style="background: #fff; padding: 15px; border-left: 4px solid var(--accent); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        在 <code>rdoSaoUnitAll</code> 函数中，除了比较 BO 和 EO 选出的最佳候选外，编码器还会额外考察 <strong>相邻 Merge 模式</strong>：尝试 <code>Merge Left</code> (复用左侧 CTU 的所有 SAO 参数) 和 <code>Merge Up</code> (复用上方 CTU 参数)。由于无需写入具体模式和 offset，Merge 模式的宏观码率 <code>Rate</code> 极低，其总 Cost 极具竞争力。<br><br>
-        <strong>终极抉择：</strong> 严格比较 <code>SAO_OFF</code> (不滤波)、<code>SAO_BO</code> (最佳候选)、<code>SAO_EO</code> (最佳候选)、<code>Merge Left</code> 和 <code>Merge Up</code> 的总代价。选择 Cost 最小的配置，作为整个 CTU 的终极模式并写入 <code>saoLcuParam</code>。
+    <div style="background: #fff; padding: 20px; border-left: 4px solid var(--accent); margin: 15px 0; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h4 style="color: var(--accent); margin-top: 0;">第二阶段：CTU 级全局模式打擂台</h4>
+        <p>除了刚才决出的 \(EO_{best}\) 和前文决出的 \(BO_{best}\)，编码器还要并行计算以下三种宏观模式的代价：</p>
+
+        <p style="margin-bottom: 5px;"><strong>1. SAO_OFF (不滤波) 的代价：</strong></p>
+        \[J_{OFF} = SSE_{org\_rec} + \lambda \times R_{type\_off}\]
+        <ul>
+            <li>\(SSE_{org\_rec}\)：SAO 滤波前，原始像素与基础重建像素的全块残差平方和（不进行任何补偿时的固有物理失真）。</li>
+            <li>\(R_{type\_off}\)：在码流中写入“当前 CTU 关闭 SAO”这一指令所需的极少 bit 消耗。</li>
+        </ul>
+
+        <p style="margin-bottom: 5px;"><strong>2. Merge Left (复用左侧参数) 的代价：</strong></p>
+        \[J_{Merge\_Left} = SSE_{left\_param} + \lambda \times R_{merge\_left\_flag}\]
+        <ul>
+            <li>\(SSE_{left\_param}\)：强行将左侧 CTU 算好的所有 SAO 参数（模式、方向、偏移量）套用在当前 CTU 上，所产生的总失真。</li>
+            <li>\(R_{merge\_left\_flag}\)：写入 <code>sao_merge_left_flag = 1</code> 的比特开销（通常仅需 1 个 bit，Rate 极低，对 Cost 极具吸引力）。</li>
+        </ul>
+
+        <p style="margin-bottom: 5px;"><strong>3. Merge Up (复用上方参数) 的代价：</strong></p>
+        \[J_{Merge\_Up} = SSE_{up\_param} + \lambda \times R_{merge\_up\_flag}\]
+        <ul>
+            <li>计算方式与 Merge Left 完全同理，只是套用的是正上方 CTU 的参数，并附带向上的 Merge Flag 语法开销。</li>
+        </ul>
+
+        <h4 style="border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 15px;">🏆 终极模式抉择 (The Ultimate Decision)</h4>
+        <p>最终，C-Model 会将上述所有五大宗师的最终 Cost 放在一起，进行严格的 \(\arg\min\) 极小值选取：</p>
+        \[Mode_{final} = \arg\min \{ J_{OFF}, \; J_{BO\_best}, \; J_{EO\_best}, \; J_{Merge\_Left}, \; J_{Merge\_Up} \}\]
+        <p style="margin-bottom: 0;">被选中的 \(Mode_{final}\) 将作为整个 CTU 的终极 SAO 模式，其对应的参数和语法标识将被正式写入到最终的视频码流 <code>saoLcuParam</code> 中，全图 RDO 流水线至此在一个 CTU 上完美闭环！</p>
     </div>
 
 </div>
