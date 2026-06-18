@@ -328,6 +328,25 @@
 
     <h2>3. Edge Offset (EO - 边缘偏移) 模式</h2>
     <p>EO 模式利用像素间的局部空间梯度，比较当前像素与其邻居的大小关系，根据分类 (Class) 来补偿。</p>
+
+    <div class="mermaid">
+    graph TD
+        A["输入当前像素 (C) 及相邻像素 (L, R)"] --> B{"获取当前方向 (EO_0~EO_3)<br>读取对应邻居"}
+        B --> C["执行梯度比较<br>(C 与 L, R 的大小关系)"]
+        C --> D{"判定 Edge Class<br>(边缘类别 0~4)"}
+        D -- Class 1 (谷底) --> E1["应用 offset_1<br>(正补偿)"]
+        D -- Class 2 (低边缘) --> E2["应用 offset_2<br>(正补偿)"]
+        D -- Class 3 (高边缘) --> E3["应用 offset_3<br>(负补偿)"]
+        D -- Class 4 (山顶) --> E4["应用 offset_4<br>(负补偿)"]
+        D -- Class 0 (平坦) --> F["跳过补偿"]
+        E1 --> G["溢出截断保护<br>Clip3(0, 255)"]
+        E2 --> G
+        E3 --> G
+        E4 --> G
+        G --> H["输出最终滤波像素"]
+        F --> H
+    </div>
+    <div class="diagram-caption">图 4：EO 模式单像素底层补偿逻辑流程图</div>
     
     <h3>3.1 EO 的四种方向</h3>
     <div class="mermaid">
