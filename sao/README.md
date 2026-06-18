@@ -1,0 +1,32 @@
+# C-Model SAO Architecture Design
+
+![Architecture](https://img.shields.io/badge/Algorithm-Architecture-3b82f6?style=for-the-badge)
+![C-Model SAO](https://img.shields.io/badge/C--Model-SAO-ec4899?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
+
+Welcome to the **C-Model SAO Architecture Design** repository. This repository serves as a centralized hub for modern, web-based C-model algorithm specifications and workflow dashboards.
+
+All documentation is generated and hosted statically via GitHub Pages, ensuring an interactive, highly readable, and zero-drag "Geek Dashboard" experience for algorithm engineers and developers.
+
+## 📖 Live Document Links (GitHub Pages)
+
+You can directly access the interactive online documentation via the following link:
+
+### 🌟 1. [C-Model SAO Architecture Dashboard](https://edgerzou-stack.github.io/cmodel-sao-doc/cmodel_sao_dashboard.html)
+- **Target Audience:** Algorithm Engineers, Software Developers, and Hardware Architects.
+- **Content:** An overview of the entire Sample Adaptive Offset (SAO) architecture, primarily focusing on HEVC/VVC standards as implemented in the KHEnc codebase.
+- **Highlights:**
+  - Auto-stretching, zero-drag Mermaid hierarchy graphs for SAO data flow.
+  - Interactive sidebar navigation with glassmorphism UI elements.
+  - Native CSS spatial diagrams visualizing Band Offset (BO) 32-band divisions and Edge Offset (EO) 4-class edge logic.
+  - Detailed mapping of the C-Model `sao` and `processSaoUnitPic` core logic to hardware implications.
+
+## 🛠️ Repository Philosophy
+
+This repository is designed to be **clean and purely web-facing**. We embrace the following principles:
+- **Only Track HTML:** We exclusively track `.html` output files in Git to keep the repository extremely clean. All intermediate scripts or notes remain on the local machine.
+- **Zero Horizontal Scrolling:** All diagrams and tables are designed using a strict 100% relative width or dynamic dimensional sizing rule to ensure 0-drag readability across any display.
+- **Geek UI/UX:** We bring modern Web UI principles (glassmorphism, high-contrast alerts) into algorithm and architecture specification viewing.
+
+---
+*Maintained by the Core Algorithm Design Team.*

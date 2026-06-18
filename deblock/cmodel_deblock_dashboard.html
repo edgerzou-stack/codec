@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-Model Deblock 架构文档</title>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        :root {
+            --primary: #0288d1;
+            --secondary: #0277bd;
+            --accent: #ff6f00;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; background: var(--bg); }
+        .sidebar { width: 300px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; padding: 30px; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .sidebar h2.toc-title { font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1px; margin-top: 0; }
+        .sidebar ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar li { margin-bottom: 8px; }
+        .sidebar a { color: #475569; text-decoration: none; display: block; padding: 8px 12px; border-radius: 6px; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover { background: #f1f5f9; color: var(--primary); }
+        .sidebar a.active { background: #eff6ff; color: var(--primary); font-weight: 600; border-left: 3px solid var(--primary); }
+        .sidebar li.level-2 a { padding-left: 12px; }
+        .sidebar li.level-3 a { padding-left: 30px; font-size: 13px; color: #64748b; }
+        
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--card-bg); padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+
+        h1 { color: var(--primary); text-align: center; border-bottom: 3px solid var(--secondary); padding-bottom: 15px; margin-bottom: 40px; }
+        h2 { color: var(--secondary); margin-top: 40px; border-left: 5px solid var(--secondary); padding-left: 15px; }
+        h3 { color: #555; }
+        
+        .highlight { background-color: #e3f2fd; border-left: 4px solid var(--secondary); padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .success { background-color: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        
+        .mermaid { display: flex; justify-content: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+        .diagram-caption { text-align: center; color: #7f8c8d; font-size: 0.9em; margin-top: -15px; margin-bottom: 30px; font-style: italic; }
+        
+        .top-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0; }
+        .top-nav-link { background: #f8fafc; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .top-nav-link:hover { background: #e0f2fe; }
+        .top-nav-link.active { background: var(--primary); color: white; border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="toc-title">目录导航</h2>
+    <ul id="toc-list"></ul>
+</div>
+<div class="main-content" id="main-content">
+<div class="container">
+    <div class="top-nav" id="top-nav"></div>
+    <h1>C-Model 去块滤波 (Deblock) 架构总结<br><span style="font-size:0.6em; color:#7f8c8d;">Architecture & Implementation Details</span></h1>
+
+    <h2>1. 全局流水线架构</h2>
+    <p>Deblock 过程以 <strong>CTU</strong> 为基本处理单元。整体流水线如下：</p>
+    
+    <div class="mermaid">
+    graph LR
+        A["1. Recon Cache<br/>(像素准备)"] --> B["2. BS Calculation<br/>(计算边界强度)"]
+        B --> C["3. Luma Filter<br/>(亮度滤波)"]
+        C --> D["4. Chroma Filter<br/>(色度滤波)"]
+        D --> E["5. Store Output<br/>(结果写回)"]
+    </div>
+    <div class="diagram-caption">图 1：Deblock CTU 级别流水线处理拓扑</div>
+
+    <h2>2. 数据准备与入口 (ctu_deblock)</h2>
+    <p>入口函数为 <code>ctu_deblock</code>，主要负责环境初始化与数据搬运。</p>
+    <div class="highlight">
+        <strong>💡 核心机制：</strong><br>
+        1. <strong>像素拷贝</strong>：将重建缓存 (<code>recon</code>) 的像素完整拷贝到去块缓存 (<code>deblock</code>)。<br>
+        2. <strong>LMCS 支持</strong>：如果开启亮度的逆映射处理（<code>sliceReshaperEnableFlag</code>），在去块之前执行 <code>rspSignal</code>。<br>
+        3. <strong>上下文构建</strong>：计算当前 CTU 的空间坐标（行、列）、边界尺寸（<code>location_t loc</code>），并分配 <code>bs_t bS[256 * 2]</code> 用来存储水平与垂直边界强度。
+    </div>
+
+    <h2>3. 边界强度计算 (Boundary Strength)</h2>
+    <p>边界强度是滤波算法的核心控制信号，决定后续是否执行滤波以及滤波强度。具体在 <code>bsd.c</code> 的 <code>bsd_calculate</code> 中实现。</p>
+    
+    <div class="mermaid">
+    graph LR
+        A["检测 4x4 网格边缘"] --> B{"是否有边界?"}
+        B -- Yes --> C{"是否 Intra 预测?"}
+        C -- Yes --> D["BS = 2 或 3 (最高强度)"]
+        C -- No --> E{"非零系数 (CBF)?"}
+        E -- Yes --> F["BS = 1 或 2"]
+        E -- No --> G{"MV 或 RefIdx 差异大?"}
+        G -- Yes --> H["BS = 1"]
+        G -- No --> I["BS = 0 (跳过滤波)"]
+    </div>
+    <div class="diagram-caption">图 2：边界强度 (BS) 判定状态机</div>
+    
+    <div class="success">
+        <strong>架构实现细节：</strong><br>
+        <code>bs_t</code> 数组分为两部分：0~255 对应左侧垂直边界，256~511 对应上方水平边界。同时会针对 VVC 长抽头滤波需求，更新 <code>maxFilterLengthP</code> 和 <code>maxFilterLengthQ</code>。
+    </div>
+
+    <h2>4. 亮度去块滤波 (Luma Deblock)</h2>
+    <p>亮度去块根据边缘方向调用 <code>FilterVerY</code> 和 <code>FilterHorY</code>。在 VVC 模式下，则调用对应的 <code>_vvc</code> 函数版本。</p>
+    
+    <h3>4.1 参数推导与梯度检测</h3>
+    <p>基于计算得出的 <code>BS</code> 值与当前 <code>QP</code>，查表获取 <code>tc</code>（最大裁剪阈值）和 <code>beta</code>（平滑度阈值）。利用 <code>calcD</code> 函数计算边界两侧的像素梯度 <code>d</code>。</p>
+    <div class="highlight">
+        <strong>💡 BS 与亮度滤波阈值的关系：</strong><br>
+        1. 当 <code>BS == 0</code> 时，<strong>直接跳过滤波</strong>。<br>
+        2. 当 <code>BS > 0</code> 时，随着 <code>BS</code> 的增加（如 1 -> 2 -> 3），在查表计算 <code>tc</code> 时会产生正向的提升（公式中对应 <code>+ 2 * (BS - 1)</code> 的偏移）。<br>
+        3. 结论：<strong>BS 强度越大，算出的 <code>tc</code>（最大修改阈值）越大</strong>，去块滤波在边界两侧允许“涂抹”的像素范围幅度也就越大，实际呈现的滤波效果更强。
+    </div>
+    
+    <h3>4.2 强/弱滤波决策网络</h3>
+    <div class="mermaid">
+    graph LR
+        A["输入梯度 d 与阈值 beta"] --> B{"d < beta ?"}
+        B -- No --> C["跳过滤波"]
+        B -- Yes --> D{"强滤波检测 (strongFilter)"}
+        D -- Yes --> E["强滤波<br/>(修改侧边最多 3/7 像素)"]
+        D -- No --> F["弱滤波<br/>(仅修改 1/2 个像素)"]
+    </div>
+    <div class="diagram-caption">图 3：亮度滤波决策路径</div>
+
+    <div class="highlight">
+        <strong>💡 VVC 长抽头扩展：</strong><br>
+        当 <code>maxFilterLengthP > 3</code> 时，表明存在大 TU 或特殊划分（如 Affine），系统将触发长抽头强滤波，平滑范围最多可达 7 个像素（<code>dbCoeffs7</code>），以抑制极严重的块效应。
+    </div>
+
+    <h3>4.3 核心滤波公式 (C-Model 实现)</h3>
+    <p>在理解滤波公式前，我们需要先明确像素在空间上的物理分布（以垂直边缘去块为例，p 为左侧块，q 为右侧块，数字表示距离边界的远近）：</p>
+
+    <div style="display: flex; justify-content: center; align-items: flex-start; gap: 8px; margin: 30px 0; font-family: 'Roboto Mono', monospace;">
+        <!-- P block -->
+        <div style="text-align: center;">
+            <div style="font-size: 12px; color: #0288d1; margin-bottom: 5px; font-weight: bold;">块 P (例如左侧)</div>
+            <div style="display: flex; gap: 4px; background: #e3f2fd; padding: 12px 8px; border-radius: 6px; border: 1px solid #90caf9;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: white; border: 1px solid #b0bec5; border-radius: 4px;">p3</div>
+                    <div style="font-size: 11px; color: #546e7a; background: #cfd8dc; padding: 2px 4px; border-radius: 3px;">p[-3]</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: white; border: 1px solid #b0bec5; border-radius: 4px;">p2</div>
+                    <div style="font-size: 11px; color: #546e7a; background: #cfd8dc; padding: 2px 4px; border-radius: 3px;">p[-2]</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: white; border: 1px solid #b0bec5; border-radius: 4px;">p1</div>
+                    <div style="font-size: 11px; color: #546e7a; background: #cfd8dc; padding: 2px 4px; border-radius: 3px;">p[-1]</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: #e1f5fe; border: 2px solid #0288d1; border-radius: 4px; font-weight: bold; color: #0288d1; box-shadow: inset 0 0 5px rgba(2,136,209,0.2);">p0</div>
+                    <div style="font-size: 11px; color: white; background: #0288d1; padding: 2px 4px; border-radius: 3px; font-weight: bold;">p[0]</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Boundary Line -->
+        <div style="display: flex; flex-direction: column; align-items: center; margin: 0 10px; padding-top: 15px;">
+            <div style="font-size: 12px; color: #d32f2f; margin-bottom: 5px; font-weight: bold;">边界</div>
+            <div style="width: 3px; height: 70px; background: #ef5350; border-radius: 2px;"></div>
+        </div>
+        
+        <!-- Q block -->
+        <div style="text-align: center;">
+            <div style="font-size: 12px; color: #f57c00; margin-bottom: 5px; font-weight: bold;">块 Q (例如右侧)</div>
+            <div style="display: flex; gap: 4px; background: #fff3e0; padding: 12px 8px; border-radius: 6px; border: 1px solid #ffb74d;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: #fff8e1; border: 2px solid #f57c00; border-radius: 4px; font-weight: bold; color: #f57c00; box-shadow: inset 0 0 5px rgba(245,124,0,0.2);">q0</div>
+                    <div style="font-size: 11px; color: white; background: #f57c00; padding: 2px 4px; border-radius: 3px; font-weight: bold;">q[0]</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: white; border: 1px solid #b0bec5; border-radius: 4px;">q1</div>
+                    <div style="font-size: 11px; color: #546e7a; background: #cfd8dc; padding: 2px 4px; border-radius: 3px;">q[1]</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: white; border: 1px solid #b0bec5; border-radius: 4px;">q2</div>
+                    <div style="font-size: 11px; color: #546e7a; background: #cfd8dc; padding: 2px 4px; border-radius: 3px;">q[2]</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                    <div style="width: 45px; height: 45px; display: flex; justify-content: center; align-items: center; background: white; border: 1px solid #b0bec5; border-radius: 4px;">q3</div>
+                    <div style="font-size: 11px; color: #546e7a; background: #cfd8dc; padding: 2px 4px; border-radius: 3px;">q[3]</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="diagram-caption">图 4：垂直边缘去块时，p 侧与 q 侧像素的物理空间映射与代码指针（数组索引）对应关系</div>
+    
+    <div class="highlight">
+        <strong>💡 指针 <code>p[]</code> 与 <code>q[]</code> 负索引含义：</strong><br>
+        在 C-Model 的实现中，传入滤波函数的指针 <code>p</code> 默认指向 <strong>贴近边界的那个像素 <code>p0</code></strong>。因为 P 块处于边界左侧，在数组（一维展开内存）中，越远离边界的像素（如 <code>p1, p2</code>）其物理内存地址越靠前。<br>
+        因此，代码利用<strong>负数数组索引</strong>来向左寻址：<br>
+        - <code>p[0]</code> = <code>p0</code>（紧贴边界）<br>
+        - <code>p[-1]</code> = <code>p1</code>（远离边界1个像素）<br>
+        - <code>p[-2]</code> = <code>p2</code>（远离边界2个像素）<br>
+        对于右侧的 Q 块，指针 <code>q</code> 同样指向 <code>q0</code>，由于它向右延伸，因此直接使用正向索引 <code>q[0], q[1], q[2]</code>。
+    </div>
+
+    <p>以下是基于上述物理像素排布真实执行的核心滤波公式：</p>
+    
+    <h4>弱滤波 (Weak Filter)</h4>
+    <div style="display: flex; flex-direction: column; align-items: center; margin: 15px 0;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 8px;">弱滤波影响范围示意：</div>
+        <div style="display: flex; gap: 4px; align-items: center; justify-content: center; font-family: monospace;">
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">p3</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">p2</div>
+            <div style="padding: 6px 12px; background: #e3f2fd; border: 1px dashed #0288d1; color: #0288d1; border-radius: 4px;">p1 (条件修改)</div>
+            <div style="padding: 6px 12px; background: #0288d1; color: white; font-weight: bold; border-radius: 4px;">p0 (必改)</div>
+            <div style="width: 2px; height: 35px; background: #ef5350;"></div>
+            <div style="padding: 6px 12px; background: #f57c00; color: white; font-weight: bold; border-radius: 4px;">q0 (必改)</div>
+            <div style="padding: 6px 12px; background: #fff3e0; border: 1px dashed #f57c00; color: #f57c00; border-radius: 4px;">q1 (条件修改)</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">q2</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">q3</div>
+        </div>
+    </div>
+    <p>计算基础偏移量 <code>delta</code>，并限制在 <code>[-tc, tc]</code> 范围内。主要修改 <code>p0, q0</code>，如果满足额外平滑条件（分别判断左右），也会以一半的 <code>tc</code> 阈值修改 <code>p1, q1</code>：</p>
+<pre><code class="language-c">delta = (9 * (q0 - p0) - 3 * (q1 - p1) + 8) >> 4;
+if (ABS(delta) < 10 * tc) {
+    delta = CLIP3(-tc, tc, delta);
+    p[0] = CLIP1(p0 + delta);
+    q[0] = CLIP1(q0 - delta);
+    
+    // 如果满足 filter2P 条件，进一步修改 p1
+    d1 = CLIP3(-(tc>>1), (tc>>1), (((p2 + p0 + 1) >> 1) - p1 + delta) >> 1);
+    p[-1] = CLIP1(p1 + d1);
+}</code></pre>
+
+    <h4>强滤波 (Strong Filter - HEVC标准 3-tap)</h4>
+    <div style="display: flex; flex-direction: column; align-items: center; margin: 15px 0;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 8px;">强滤波影响范围示意：</div>
+        <div style="display: flex; gap: 4px; align-items: center; justify-content: center; font-family: monospace;">
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #9e9e9e; border-radius: 4px;">p3 (参考)</div>
+            <div style="padding: 6px 12px; background: #0288d1; color: white; border-radius: 4px;">p2 (必改)</div>
+            <div style="padding: 6px 12px; background: #0288d1; color: white; border-radius: 4px;">p1 (必改)</div>
+            <div style="padding: 6px 12px; background: #0288d1; color: white; font-weight: bold; border-radius: 4px;">p0 (必改)</div>
+            <div style="width: 2px; height: 35px; background: #ef5350;"></div>
+            <div style="padding: 6px 12px; background: #f57c00; color: white; font-weight: bold; border-radius: 4px;">q0 (必改)</div>
+            <div style="padding: 6px 12px; background: #f57c00; color: white; border-radius: 4px;">q1 (必改)</div>
+            <div style="padding: 6px 12px; background: #f57c00; color: white; border-radius: 4px;">q2 (必改)</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #9e9e9e; border-radius: 4px;">q3 (参考)</div>
+        </div>
+    </div>
+    <p>直接通过两侧多个像素的加权平均来彻底平滑边界，并用 <code>tc</code> 乘以 2 进行最终的限幅（因为强滤波修改幅度更大）：</p>
+<pre><code class="language-c">// p 侧的 3 个像素平滑
+p[0]  = CLIP3(p0 - 2*tc, p0 + 2*tc, (p2 + 2*p1 + 2*p0 + 2*q0 + q1 + 4) >> 3);
+p[-1] = CLIP3(p1 - 2*tc, p1 + 2*tc, (p2 + p1 + p0 + q0 + 2) >> 2);
+p[-2] = CLIP3(p2 - 2*tc, p2 + 2*tc, (2*p3 + 3*p2 + p1 + p0 + q0 + 4) >> 3);
+// q 侧同理对称计算...</code></pre>
+
+    <h2>5. 色度去块滤波 (Chroma Deblock)</h2>
+    <p>色度过程更加保守，调用 <code>FilterVerC</code> 和 <code>FilterHorC</code>。</p>
+    
+    <div class="highlight">
+        <strong>💡 BS 与色度滤波的激活关系：</strong><br>
+        1. 当 <strong>BS < 2</strong> 时：默认<strong>跳过</strong>色度滤波。因为色度自身的频带较窄、图像更加平滑，且人眼对其块效应不如对亮度敏感。<br>
+        2. 当 <strong>BS >= 2</strong> 时：<strong>激活</strong>色度滤波，此时会根据色度专属的 QP 独立推导出 <code>tc</code> 并执行两端平滑。<br>
+        3. <strong>VVC 长抽头特例</strong>：如果边界触发了 VVC 的大区块长抽头滤波条件 (<code>largeBoundary</code>)，则对色度放宽条件，即使 <strong>BS == 1</strong> 也会强行激活滤波。
+    </div>
+
+    <h3>5.1 色度滤波公式</h3>
+    <div style="display: flex; flex-direction: column; align-items: center; margin: 15px 0;">
+        <div style="font-size: 13px; color: #666; margin-bottom: 8px;">色度滤波影响范围示意：</div>
+        <div style="display: flex; gap: 4px; align-items: center; justify-content: center; font-family: monospace;">
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">p3</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">p2</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #9e9e9e; border-radius: 4px;">p1 (仅参考)</div>
+            <div style="padding: 6px 12px; background: #0288d1; color: white; font-weight: bold; border-radius: 4px;">p0 (必改)</div>
+            <div style="width: 2px; height: 35px; background: #ef5350;"></div>
+            <div style="padding: 6px 12px; background: #f57c00; color: white; font-weight: bold; border-radius: 4px;">q0 (必改)</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #9e9e9e; border-radius: 4px;">q1 (仅参考)</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">q2</div>
+            <div style="padding: 6px 12px; background: #f5f5f5; color: #bdbdbd; border-radius: 4px;">q3</div>
+        </div>
+    </div>
+    <p>色度的计算只有弱滤波逻辑（除非触发 VVC 的大区块长抽头），计算时使用 <code>p1</code> 和 <code>q1</code> 作为辅助参考，但最终仅修改边界紧邻的 1 个像素：</p>
+<pre><code class="language-c">delta = CLIP3(-tc, tc, ((((q0 - p0) << 2) + p1 - q1 + 4) >> 3));
+p[0] = CLIP1(p0 + delta);
+q[0] = CLIP1(q0 - delta);</code></pre>
+
+    <h2>6. 输出写回 (Store Output)</h2>
+    <p>经过处理的像素保存在 <code>deblock</code> 缓存中。通过 <code>FilterOutput</code>，系统按照左侧边缘、上方边缘、以及中心区域的三块划分，精准地将像素拼接覆盖回 <code>p->deblock.lum.pel</code> 等全局存储结构中，为后续的 SAO / ALF 模块准备数据。</p>
+
+</div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tocList = document.getElementById('toc-list');
+        const topNav = document.getElementById('top-nav');
+        const headers = document.querySelectorAll('.container h2:not(.toc-title), .container h3');
+        const mainContent = document.getElementById('main-content');
+        
+        headers.forEach((header, index) => {
+            const id = 'section-' + index;
+            header.id = id;
+            
+            const li = document.createElement('li');
+            li.className = header.tagName === 'H2' ? 'level-2' : 'level-3';
+            const a = document.createElement('a');
+            a.href = '#' + id;
+            a.textContent = header.textContent;
+            
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+                mainContent.scrollTo({ top: document.getElementById(id).offsetTop - 40, behavior: 'smooth' });
+            });
+            
+            li.appendChild(a);
+            tocList.appendChild(li);
+
+            if (header.tagName === 'H2' && topNav) {
+                const topA = document.createElement('a');
+                topA.href = '#' + id;
+                topA.className = 'top-nav-link';
+                topA.textContent = header.textContent;
+                topA.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    mainContent.scrollTo({ top: document.getElementById(id).offsetTop - 40, behavior: 'smooth' });
+                });
+                topNav.appendChild(topA);
+            }
+        });
+        
+        mainContent.addEventListener('scroll', () => {
+            let currentId = '';
+            let currentH2Id = '';
+            headers.forEach(header => {
+                if (mainContent.scrollTop >= header.offsetTop - 100) {
+                    currentId = header.id;
+                    if (header.tagName === 'H2') currentH2Id = header.id;
+                }
+            });
+            
+            if (currentId) {
+                document.querySelectorAll('.sidebar a').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentId) link.classList.add('active');
+                });
+            }
+            if (currentH2Id) {
+                document.querySelectorAll('.top-nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentH2Id) link.classList.add('active');
+                });
+            } else if (currentId) {
+                let foundH2 = '';
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i].id === currentId) {
+                        for (let j = i; j >= 0; j--) {
+                            if (headers[j].tagName === 'H2') { foundH2 = headers[j].id; break; }
+                        }
+                        break;
+                    }
+                }
+                if (foundH2) {
+                    document.querySelectorAll('.top-nav-link').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + foundH2) link.classList.add('active');
+                    });
+                }
+            }
+        });
+        
+        if(tocList.firstChild) tocList.firstChild.querySelector('a').classList.add('active');
+        if(topNav && topNav.firstChild) topNav.firstChild.classList.add('active');
+    });
+</script>
+</body>
+</html>

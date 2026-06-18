@@ -1,0 +1,9 @@
+*
+!*/
+!*.html
+!.gitignore
+!README.md
+!skills/*.md
+!*.png
+!*.svg
+!*.py

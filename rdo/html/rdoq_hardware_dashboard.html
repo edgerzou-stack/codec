@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VVC RDOQ Hardware Architecture Dashboard</title>
+<style>
+:root {
+    --primary: #0288d1;
+    --secondary: #7b1fa2;
+    --accent: #ff6f00;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+}
+body { 
+    margin: 0; padding: 0; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    background: var(--bg); 
+    color: #333; 
+    display: flex; 
+    height: 100vh; 
+    overflow: hidden; 
+}
+.sidebar { 
+    width: 300px; 
+    background: white; 
+    border-right: 1px solid #e2e8f0; 
+    padding: 30px; 
+    overflow-y: auto; 
+    flex-shrink: 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.02);
+}
+.sidebar h2.toc-title { 
+    font-size: 14px; 
+    color: #94a3b8; 
+    text-transform: uppercase; 
+    margin-bottom: 20px; 
+    letter-spacing: 1px; 
+    border-left: none; 
+    padding-left: 0; 
+    margin-top: 0; 
+}
+ul.toc { list-style: none; padding-left: 0; margin: 0; }
+ul.toc li { margin-bottom: 8px; }
+ul.toc a { 
+    color: #475569; 
+    text-decoration: none; 
+    display: block; 
+    padding: 8px 12px; 
+    border-radius: 6px; 
+    font-size: 14px; 
+    transition: all 0.2s; 
+}
+ul.toc a:hover { background: #f1f5f9; color: var(--primary); }
+ul.toc a.active { 
+    background: #eff6ff; 
+    color: var(--primary); 
+    font-weight: 600; 
+    border-left: 3px solid var(--primary); 
+}
+ul.toc li.sub-toc a { padding-left: 30px; font-size: 13px; color: #64748b; }
+
+.main-content { 
+    flex-grow: 1; 
+    padding: 40px; 
+    overflow-y: auto; 
+    scroll-behavior: smooth; 
+}
+.container { 
+    max-width: 1200px; 
+    margin: 0 auto; 
+    background: var(--card-bg); 
+    padding: 40px 60px; 
+    border-radius: 12px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05); 
+}
+
+.top-nav { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 10px; 
+    margin-bottom: 25px; 
+    padding-bottom: 15px; 
+    border-bottom: 1px solid #e0e0e0; 
+}
+.top-nav-link { 
+    background: #f8fafc; 
+    color: var(--primary); 
+    padding: 8px 16px; 
+    border-radius: 20px; 
+    font-size: 13px; 
+    font-weight: 600; 
+    text-decoration: none; 
+    border: 1px solid #e2e8f0; 
+    transition: all 0.2s; 
+}
+.top-nav-link:hover { background: #e0f2fe; }
+.top-nav-link.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+h1 { color: var(--primary); text-align: center; border-bottom: 3px solid var(--secondary); padding-bottom: 15px; margin-bottom: 40px; margin-top: 0;}
+h2 { color: var(--secondary); margin-top: 40px; border-left: 5px solid var(--secondary); padding-left: 15px; }
+h3 { color: #555; }
+
+.critical-alert { 
+    background-color: #f3e5f5;
+    border-left: 4px solid var(--secondary);
+    padding: 15px; 
+    margin: 20px 0; 
+    border-radius: 0 4px 4px 0;
+    line-height: 1.6;
+}
+.critical-alert span.highlight { 
+    background: #fecaca; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    color: #991b1b; 
+    font-weight: 700; 
+}
+.success {
+    background-color: #e8f5e9;
+    border-left: 4px solid #2e7d32;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 0 4px 4px 0;
+}
+.algorithm-steps {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px 25px;
+    margin: 20px 0;
+}
+.algorithm-steps h3 {
+    margin-top: 0;
+    color: #475569;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px dashed #cbd5e1;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    border-left: none;
+}
+.algorithm-steps ol {
+    margin: 0;
+    padding-left: 20px;
+    color: #334155;
+    line-height: 1.6;
+}
+.algorithm-steps li {
+    margin-bottom: 10px;
+}
+.algorithm-steps li strong {
+    color: var(--primary);
+}
+
+code.language-verilog, code.language-c { 
+    font-family: 'Roboto Mono', Consolas, monospace; 
+    background: #f8fafc; 
+    padding: 15px; 
+    border-radius: 8px; 
+    display: block; 
+    overflow-x: auto; 
+    border: 1px solid #e2e8f0;
+}
+.mermaid-wrapper { 
+    background: #fafafa; 
+    padding: 20px; 
+    border-radius: 8px; 
+    margin: 30px 0 10px 0; 
+    display: flex; 
+    justify-content: center; 
+    overflow: hidden; 
+    border: 1px solid #eee;
+}
+.mermaid {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+.mermaid svg {
+    width: 100% !important; 
+    height: auto !important;
+    max-width: none !important;
+}
+.diagram-caption {
+    text-align: center;
+    color: #7f8c8d;
+    font-size: 0.95em;
+    margin-bottom: 30px;
+    font-style: italic;
+    font-weight: 500;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/verilog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/languages/c.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true });
+hljs.highlightAll();
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2 class="toc-title">目录导航</h2>
+  <ul class="toc" id="toc-list"></ul>
+</div>
+
+<div class="main-content" id="main-content">
+  <div class="container">
+      <div class="top-nav" id="top-nav"></div>
+      
+      <h1>VVC RDOQ 硬件架构设计 Dashboard<br><span style="font-size:0.6em; color:#7f8c8d;">Hardware Architecture & Pipelining</span></h1>
+      
+      <h2>第一章 RDOQ 算法原理 (Algorithm Principles)</h2>
+      <div style="background: linear-gradient(135deg, #eff6ff, #f0fdf4); padding: 20px; border-radius: 10px; border: 1px solid #bfdbfe; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(59,130,246,0.08);">
+        <p style="margin: 0; color: #1e3a8a; font-size: 1.05em; line-height: 1.8;">
+          <strong style="font-size: 1.15em;">总览：</strong>RDOQ (Rate-Distortion Optimized Quantization) 的本质是在标准量化 (SQ) 完成后，对每一个变换系数进行局部的 <strong>RD 代价比较</strong>：它只尝试将系数“减弱一档”或“强制清零”，然后计算 <code>Cost = Distortion + λ × Rate</code>，择优保留代价最低的量化值。<br>
+          整个算法由三个层级构成：<strong>① 系数级</strong>（逐点串行扫描、计算 CABAC 码率代价、选最优 Level）→ <strong>② CG 级</strong>（4×4 块整体抹零判决）→ <strong>③ TU 级</strong>（终极 CBF 清零判决）。为便于理解，本章按三大块展开：<strong>1.1 整体过程与原理</strong>（RDOQ 在做什么、扫描怎么跑、候选怎么来）、<strong>1.2 Dcost（失真代价）怎么算</strong>、<strong>1.3 Bincost（码率代价）怎么算</strong>；最后用一个综合示例把 <code>Cost = Dcost + λ × Bincost</code> 串起来。
+        </p>
+      </div>
+      <p>在深入硬件优化前，必须厘清 RDOQ 在 C-Model 中的算法本质。RDOQ 并非盲目尝试，而是一场从宏观扫描到微观计算，再到层级截断的精密计算过程。</p>
+      
+      <h3>1.1 整体过程与原理：RDOQ 在做什么、怎么跑</h3>
+      <div class="algorithm-steps">
+        <p style="color: #475569; margin-bottom: 15px;">当一个 Transform Unit (TU) 经过 DCT 变换后，其能量分布具有极强的规律性：</p>
+        
+        <div style="text-align: center; margin: 20px 0; padding: 15px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+          <img src="./rdoq_dct_distribution.png" alt="DCT Coefficient Distribution" style="max-width: 400px; height: auto;">
+        </div>
+        
+        <ul style="color: #334155; line-height: 1.8;">
+          <li><strong>低频区（左上角）</strong>：能量高度集中，系数值极大。这里的系数对画面质量起决定性作用，几乎不可能被 RDOQ 清零。</li>
+          <li><strong>高频区（右下角）</strong>：能量稀疏，散落着大量幅值极小（量化后 <code>Level = 1</code> 或 <code>2</code>）的系数。</li>
+        </ul>
+        <div class="critical-alert" style="margin-top: 15px;">
+          <strong>RDOQ 的核心优化目标：孤立高频系数（离散高频分量）</strong><br>
+          为何优先处理此类系数？因为在 CABAC 熵编码中，编码一个孤立的 <code>Level=1</code> 系数，需要消耗极高的语法开销（需要编码 <code>sig_coeff_flag=1</code>、坐标位置、符号位等）。它们消耗了不成比例的巨量 bits，但对画质的贡献却微乎其微。RDOQ 的核心收益，正是通过评估代价，将这些“性价比极低”的边缘系数强制量化为 0，从而换取码率的显著降低。
+        </div>
+
+        <h4 style="margin-top: 30px; color: #3b82f6; border-bottom: 1px solid #bfdbfe; padding-bottom: 5px;">锁定靶点后的宏观扫描路径 (Nested Scan)</h4>
+        <p style="color: #475569; margin-bottom: 15px;">明确了高频系数是优化靶点后，系统需要一套严格的扫描顺序来遍历它们。微观的系数代价值比较并非毫无章法地乱序执行。在一个完整的 TU 内部，RDOQ 遵循极其严格的<strong>嵌套扫描 (Nested Scan)</strong> 流程。很多初学者会疑惑：“既然是 4x4 处理，为什么又说是单点串行扫描？” 让我们通过下面的动态推演一探究竟：</p>
+        
+        <div class="scan-anim-container" style="display: flex; gap: 30px; align-items: center; justify-content: center; background: #fff; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; margin: 25px 0; box-shadow: 0 10px 25px rgba(0,0,0,0.05); flex-wrap: wrap;">
+          <div class="grid-8x8" id="scanGrid" style="display: grid; grid-template-columns: repeat(8, 30px); grid-template-rows: repeat(8, 30px); gap: 1px; background: #cbd5e1; border: 2px solid #334155; padding: 1px;">
+            <!-- 64 cells generated by JS -->
+          </div>
+          <div class="scan-status" style="flex: 1; min-width: 250px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+            <h4 style="margin-top: 0; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">扫描状态监控 (TU = 8x8)</h4>
+            <p style="margin: 10px 0;"><strong>当前坐标 (x,y):</strong> <span id="scanCoord" style="color: #ef4444; font-family: monospace; font-size: 1.1em; font-weight: bold; background: #fee2e2; padding: 2px 6px; border-radius: 4px;">-</span></p>
+            <p style="margin: 10px 0;"><strong>当前所在系数组:</strong> <span id="scanCg" style="color: #8b5cf6; font-weight: bold;">-</span></p>
+            <p style="margin: 10px 0;"><strong>当前处理层级:</strong> <span id="scanLevel" style="color: #64748b; font-weight: bold; display: block; margin-top: 5px; padding: 5px; border-radius: 4px; background: #f1f5f9;">等待开始</span></p>
+            <div style="margin-top: 25px; display: flex; gap: 10px;">
+              <button onclick="startScan()" style="flex: 1; padding: 10px 15px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">▶ 开始动态推演</button>
+              <button onclick="resetScan()" style="padding: 10px 15px; background: #e2e8f0; color: #475569; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s;">重置</button>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          const scanGrid = document.getElementById('scanGrid');
+          // Create 64 cells
+          for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+              const cell = document.createElement('div');
+              cell.id = `cell-${x}-${y}`;
+              cell.style.background = '#f8fafc';
+              cell.style.display = 'flex';
+              cell.style.alignItems = 'center';
+              cell.style.justifyContent = 'center';
+              cell.style.fontSize = '9px';
+              cell.style.color = '#94a3b8';
+              cell.innerText = `${x},${y}`;
+              
+              // CG boundary styling (4x4)
+              if (x === 3) cell.style.borderRight = '2px solid #334155';
+              if (y === 3) cell.style.borderBottom = '2px solid #334155';
+              
+              scanGrid.appendChild(cell);
+            }
+          }
+
+          // HEVC/VVC up-right diagonal scan order within a 4x4 CG
+          const diag4x4 = [
+            [3,3], [2,3], [3,2], [1,3], [2,2], [3,1], [0,3], [1,2], [2,1], [3,0],
+            [0,2], [1,1], [2,0], [0,1], [1,0], [0,0]
+          ];
+          
+          // Partial scan starting from CG(1,1) -> CG(0,1) -> CG(1,0) -> CG(0,0)
+          const cgOrder = [[1,1], [0,1], [1,0], [0,0]];
+          const fullPath = [];
+          for (let c of cgOrder) {
+            let cgX = c[0] * 4;
+            let cgY = c[1] * 4;
+            for (let p of diag4x4) {
+              fullPath.push({x: cgX + p[0], y: cgY + p[1], cgX: c[0], cgY: c[1], cg: `CG(${c[0]}, ${c[1]})`});
+            }
+          }
+
+          let scanTimer = null;
+          let scanIdx = 0;
+
+          function doScanStep() {
+              if (scanIdx > 0) {
+                  let prev = fullPath[scanIdx - 1];
+                  let prevCell = document.getElementById(`cell-${prev.x}-${prev.y}`);
+                  prevCell.style.background = '#dbeafe';
+                  prevCell.style.color = '#3b82f6';
+              }
+              if (scanIdx < fullPath.length) {
+                  let curr = fullPath[scanIdx];
+                  let currCell = document.getElementById(`cell-${curr.x}-${curr.y}`);
+                  currCell.style.background = '#2563eb';
+                  currCell.style.color = 'white';
+                  
+                  let levelElem = document.getElementById('scanLevel');
+                  levelElem.innerText = '🎯 系数级 (Point-by-Point) 代价对比';
+                  levelElem.style.color = '#2563eb';
+                  levelElem.style.background = '#eff6ff';
+                  
+                  document.getElementById('scanCg').innerText = curr.cg;
+                  document.getElementById('scanCoord').innerText = `(${curr.x}, ${curr.y})`;
+                  
+                  scanIdx++;
+                  
+                  if (scanIdx % 16 === 0) {
+                      // CG Done
+                      levelElem.innerText = '⏸ 触发 4x4 CG 级判决 (Sub-Block Flag)';
+                      levelElem.style.color = '#b45309';
+                      levelElem.style.background = '#fef3c7';
+                      
+                      // Highlight current CG
+                      let cgTopX = curr.cgX * 4;
+                      let cgTopY = curr.cgY * 4;
+                      for(let dy=0; dy<4; dy++){
+                          for(let dx=0; dx<4; dx++){
+                              document.getElementById(`cell-${cgTopX+dx}-${cgTopY+dy}`).style.background = '#fde68a';
+                          }
+                      }
+
+                      scanTimer = setTimeout(() => {
+                          // Restore CG color
+                          for(let dy=0; dy<4; dy++){
+                              for(let dx=0; dx<4; dx++){
+                                  let cell = document.getElementById(`cell-${cgTopX+dx}-${cgTopY+dy}`);
+                                  cell.style.background = '#dbeafe';
+                                  cell.style.color = '#3b82f6';
+                              }
+                          }
+                          
+                          if (scanIdx === fullPath.length) {
+                              levelElem.innerText = '✅ 触发 TU 级终极判决 (Root CBF)';
+                              levelElem.style.color = '#047857';
+                              levelElem.style.background = '#ecfdf5';
+                              document.getElementById('scanCg').innerText = '全部扫描完毕';
+                              document.getElementById('scanCoord').innerText = 'DC (0, 0)';
+                          } else {
+                              doScanStep();
+                          }
+                      }, 1500);
+                  } else {
+                      scanTimer = setTimeout(doScanStep, 100);
+                  }
+              }
+          }
+
+          function startScan() {
+              resetScan();
+              doScanStep();
+          }
+
+          function resetScan() {
+              if (scanTimer) clearTimeout(scanTimer);
+              for (let i = 0; i < fullPath.length; i++) {
+                  let p = fullPath[i];
+                  let c = document.getElementById(`cell-${p.x}-${p.y}`);
+                  c.style.background = '#f8fafc';
+                  c.style.color = '#94a3b8';
+              }
+              scanIdx = 0;
+              let levelElem = document.getElementById('scanLevel');
+              levelElem.innerText = '等待开始';
+              levelElem.style.color = '#64748b';
+              levelElem.style.background = '#f1f5f9';
+              document.getElementById('scanCg').innerText = '-';
+              document.getElementById('scanCoord').innerText = '-';
+          }
+        </script>
+
+        <ol style="color: #334155; line-height: 1.8;">
+          <li><strong>系数级：严格串行的单点逆向扫描 (Point-by-Point)</strong><br>虽然 TU 被划分为了 4x4 的块 (CG)，但在硬件微观执行层面，依然是<strong>一个坐标一个坐标 (单点)</strong> 去串行处理的。从末尾非零系数所在的 CG 开始，沿着对角线方向逆向推进。例如处理 <code>(4,5)</code> 后处理 <code>(5,4)</code>。它们<strong>绝对不能跨点并行处理</strong>，因为后一个系数的 CABAC 概率模型，强依赖于前一个系数的最终量化结果。
+            
+            <div style="background: #fff1f2; border-left: 4px solid #e11d48; padding: 15px; margin: 15px 0; border-radius: 6px; box-shadow: 0 2px 4px rgba(225, 29, 72, 0.05);">
+              <strong style="color: #be123c; font-size: 1.05em; display: flex; align-items: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                深度解析：这道阻止并行的“数据冒险 (Data Hazard)”墙是如何产生的？
+              </strong>
+              <p style="margin-top: 10px; margin-bottom: 5px; color: #881337; line-height: 1.6;">
+                在计算当前坐标 <code>(x,y)</code> 的上下文增量 <code>ctxInc</code> 时，系统需要构建一个周边相邻掩码 <strong><code>patternSigCtx</code></strong>。这个掩码强依赖于它的<strong>右侧邻居 (x+1,y)</strong> 和<strong>下方邻居 (x,y+1)</strong> 最终是否为非零系数。
+              </p>
+              <div style="text-align: center; margin: 15px 0; padding: 10px; background: #ffffff; border-radius: 8px; border: 1px solid #fecdd3;">
+                <img src="./rdoq_data_hazard_py.png" alt="Data Hazard Dependency Graphic" style="max-width: 100%; height: auto;">
+              </div>
+              <ul style="color: #9f1239; margin-top: 5px; padding-left: 20px; line-height: 1.7;">
+                <li><strong>时空交错：</strong>因为扫描顺序是“从右下到左上的逆向对角线”，这意味着右侧和下方的邻居在时间轴上必然<strong>先于</strong>当前系数被扫描。</li>
+                <li><strong>致命的 RDOQ 反馈：</strong>RDOQ 的贪婪本质在于“试探与微雕”，它极有可能把原本初始量化不为 0 的右侧邻居，为了省码率而<strong>强制量化为 0 (Level=0)</strong>。</li>
+                <li><strong>并行悖论：</strong>如果硬件设计想把 <code>(x,y)</code> 和 <code>(x+1,y)</code> 放入同一个时钟周期内流水线并行计算，那么在算 <code>(x,y)</code> 的 CABAC 码率代价值时，<code>(x+1,y)</code> 的最终 RDOQ 判决结果<strong>还没出炉</strong>！硬件根本不知道 <code>patternSigCtx</code> 该不该包含这个邻居，从而导致查表的 <code>Fractional Bits Cost</code> 彻底跑飞。因此，必须老老实实等前一个系数的 RDOQ 彻底走完全流程，其最终状态固化后，才能推导下一个系数的 Context。这就是所谓<strong>“强依赖”</strong>的硬件灾难级来源！</li>
+              </ul>
+            </div>
+
+          </li>
+          <li><strong>CG 级：4x4 块级阻断判决 (Sub-Block Flag)</strong><br>当一个 4x4 CG 内部的 16 个系数<strong>全部单点处理完毕</strong>后，系统会整体暂停，进行一次块级宏观算账：“如果我把刚才这 16 个系数连同这个 4x4 块的标志位直接全部抹零，总体代价会不会更低？” 如果是，则触发 <code>coded_sub_block_flag = 0</code>。</li>
+          <li><strong>TU 级：终极判决 (Root CBF)</strong><br>当单点扫描最终抵达并处理完左上角的 DC 系数 <code>(0,0)</code>，整个大 TU 扫描宣告结束。引擎最后评估一次将整个 TU 清零的代价，如果更低，则触发 <code>cbf = 0</code>。</li>
+        </ol>
+        <div class="success" style="margin-top: 15px;">
+          <strong>嵌套执行总结：</strong><br>
+          其实并不矛盾。<strong>“4x4”是管理的粒度（决定何时触发块级评估），而“单点”是执行的粒度（保证 CABAC 依赖的正确性）。</strong> 只有跑完完整的 <strong>系数级 &rarr; CG级 &rarr; TU级</strong> 三层循环后，RDOQ 流程才算真正“计算完毕”。
+        </div>
+      </div>
+
+      <div class="algorithm-steps">
+        <h4 style="margin-top: 0; color: #3b82f6; border-bottom: 1px solid #bfdbfe; padding-bottom: 6px;">整体流程的最后一环：候选 Level 的精准产生</h4>
+        <p style="color: #475569; margin-bottom: 15px;">对于选定的变换系数 <i>C<sub>trans</sub></i>，RDOQ 不会遍历所有数字，而是基于普通标量量化 (SQ) 的结果进行局部试探：</p>
+        <ul style="color: #334155; line-height: 1.8;">
+          <li>首先执行普通量化：<b>L<sub>SQ</sub> = round(C<sub>trans</sub> / Q<sub>step</sub>)</b>。</li>
+          <li>随后，RDOQ 引擎通常只会产生 2 到 3 个候选 Level 参与 PK：<strong>{ L<sub>SQ</sub>, L<sub>SQ</sub>-1, 0 }</strong>。</li>
+          <li><strong>调整逻辑</strong>：它只会尝试将系数“减弱”或“抹零”，绝不会尝试“增强”（因为增强既增加误差又增加码率）。</li>
+        </ul>
+        <div style="text-align: center; margin: 20px 0; padding: 15px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+          <img src="./rdoq_candidate_selection.png" alt="Candidate Selection Graph" style="max-width: 100%; height: auto;">
+        </div>
+        <div class="success" style="margin-top: 15px; margin-bottom: 10px;">
+          <strong>举个例子 (Example)：候选 Level 是怎么选的？</strong><br>
+          假设我们有一个高频系数 <i>C<sub>trans</sub> = 26</i>，并且当前量化步长 <i>Q<sub>step</sub> = 10</i>。<br>
+          1. <strong>基准量化：</strong> 26 / 10 = 2.6，四舍五入后得到基准 <code>L<sub>SQ</sub> = 3</code>。<br>
+          2. <strong>产生候选：</strong> RDOQ 引擎会选定三个候选量化值参与代价比较：<code>Level = 3</code> (保持)、<code>Level = 2</code> (减弱)、<code>Level = 0</code> (强制量化为 0)。<br>
+          如果是像上图那样更极端的 <i>C<sub>trans</sub> = 11</i>，<code>L<sub>SQ</sub> = 1</code>，那么候选就只有 <code>Level = 1</code> 和 <code>Level = 0</code> 了。正是由于这种收敛机制，庞大的搜索空间被转化为极简的“二选一”或“三选一”贪婪比对。
+        </div>
+      </div>
+
+      <!-- 整体判决示例（属于 1.1 节内） -->
+      <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin: 25px 0; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+        <div style="background: var(--secondary); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="margin: 0; color: white; border: none; font-size: 16px; font-weight: bold;">整体判决示例：Cost = Dcost + λ×Bincost</div>
+          <span style="font-size: 14px; opacity: 0.8;">RDOQ Overview Decision Flow</span>
+        </div>
+        <div style="padding: 25px; display: flex; flex-direction: column; gap: 20px;">
+          <p style="margin-top: 0; color: #475569; line-height: 1.8;">在展开 <strong>1.2 Dcost</strong> 与 <strong>1.3 Bincost</strong> 的计算细节之前，先用一个典型场景建立整体直觉：边缘 DCT 系数 <code>C_trans = 15</code>，SQ 量化为 <code>Level = 1</code>（反量化后 <code>unQuant = 26</code>）。RDOQ 在候选 <code>{1, 0}</code> 之间分别计算 Dcost 与 Bincost，比较总代价 <code>Cost = Dcost + λ×Bincost</code> 后择优保留。</p>
+
+          <div style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; padding: 15px; display: flex; justify-content: center;">
+            <img src="./rdoq_decision_tree.png" alt="RDOQ Decision Tree Graph" style="max-width: 100%; height: auto; border-radius: 6px;">
+          </div>
+          <p class="diagram-caption" style="margin: 0;">图：RDOQ 核心决策树（C_trans = 15）—— 每个候选的 D/R 拆解与最终判决</p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <div style="background: #fff; padding: 20px; border-radius: 8px; border-top: 4px solid #3b82f6; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+              <h4 style="margin-top: 0; color: #1e40af;">候选 A：保留 Level = 1</h4>
+              <ul style="color: #334155; line-height: 1.8; padding-left: 20px; margin-bottom: 0;">
+                <li><strong>Dcost：</strong>d = |15 − 26| = 11 → D = 11² × 1024 = <strong>123,904</strong></li>
+                <li><strong>Bincost：</strong>需编 <code>sig=1</code>, <code>gr1=0</code>, <code>sign=1</code>，约 2.5 bits → λ×R ≈ <strong>150,000</strong></li>
+                <li style="border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 8px;"><strong>Cost(L=1) =</strong> <strong>273,904</strong></li>
+              </ul>
+            </div>
+            <div style="background: #fff; padding: 20px; border-radius: 8px; border-top: 4px solid #f59e0b; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+              <h4 style="margin-top: 0; color: #b45309;">候选 B：截断 Level = 0</h4>
+              <ul style="color: #334155; line-height: 1.8; padding-left: 20px; margin-bottom: 0;">
+                <li><strong>Dcost：</strong>d = |15 − 0| = 15 → D = 15² × 1024 = <strong>230,400</strong>（误差↑）</li>
+                <li><strong>Bincost：</strong>只需编 <code>sig=0</code>，约 0.2 bits → λ×R ≈ <strong>12,000</strong>（码率↓）</li>
+                <li style="border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 8px;"><strong>Cost(L=0) =</strong> <strong>242,400</strong></li>
+              </ul>
+            </div>
+            <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; border-top: 4px solid #10b981; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
+              <h4 style="margin-top: 0; color: #047857;">贪婪判决</h4>
+              <div style="text-align: center; font-size: 1.05em; padding: 8px 0; margin-bottom: 8px;">
+                Cost(0) <strong>242,400</strong> &lt; Cost(1) <strong>273,904</strong>
+              </div>
+              <p style="color: #065f46; margin-bottom: 0; font-size: 0.95em; line-height: 1.7;"><strong>结论：</strong>D 变大但 R 骤降，总代价更低 → 选择 <strong style="color: #059669;">Level = 0</strong>。这正是 RDOQ 提升压缩率的核心机制。下面 1.2 / 1.3 分别拆解 Dcost 与 Bincost 如何算出。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: linear-gradient(135deg, #f0fdf4, #eff6ff); border: 1px solid #bbf7d0; border-radius: 10px; padding: 18px 22px; margin: 20px 0 5px 0; box-shadow: 0 2px 8px rgba(16,185,129,0.06);">
+        <p style="margin: 0; color: #14532d; font-size: 1.02em; line-height: 1.8;">
+          <strong style="font-size: 1.1em;">承上启下：</strong>上面示例已经展示了 RDOQ 的<strong>整体过程</strong>——逆向逐点扫描 → 产生候选 Level → 比较总代价择优。总代价由两项构成：
+        </p>
+        <div style="text-align: center; background: #ffffff; border: 1px dashed #86efac; border-radius: 8px; padding: 12px; margin: 12px 0 6px 0; font-size: 1.15em; color: #0f172a; overflow-x: auto;">
+          $$ \text{Cost}(L) = \underbrace{D_{cost}(L)}_{\text{失真 (1.2 节)}} \;+\; \lambda \times \underbrace{Bin_{cost}(L)}_{\text{码率 (1.3 节)}} $$
+        </div>
+        <p style="margin: 8px 0 10px 0; color: #14532d; font-size: 0.95em; line-height: 1.7;">
+          C-Model / 硬件中，上式以<strong>定点整数</strong>实现（与 1.1 决策树里的 273,904 / 242,400 同一套量纲）：
+        </p>
+        <div style="text-align: center; margin: 0 0 10px 0; padding: 15px; background: #ffffff; border: 1px solid #bbf7d0; border-radius: 8px; box-shadow: 0 2px 5px rgba(16,185,129,0.06);">
+          <img src="./rdoq_formula.png" alt="RDOQ Cost Formula" style="max-width: 100%; height: auto;">
+        </div>
+        <p style="margin: 6px 0 0 0; color: #14532d; font-size: 0.95em; line-height: 1.7;">
+          其中 <code>d² · 2<sup>scaleBits</sup></code> 即 Dcost 项，<code>⌊λ·bits / 2<sup>shift</sup>⌋</code> 即 λ×Bincost 项。下面两节分别把这两项拆开讲透：<strong>1.2</strong> 讲失真 <code>Dcost</code> 怎么算（简单、可并行），<strong>1.3</strong> 讲码率 <code>Bincost</code> 怎么算（复杂、强串行）。
+        </p>
+      </div>
+
+      <h3>1.2 Dcost（失真代价）的计算</h3>
+      <div class="algorithm-steps">
+        <p style="color: #475569; margin-bottom: 15px;">失真 <code>Dcost</code> 衡量的是“把系数量化成某个 Level 后，重建画面会偏离原始多少”。它的计算比码率简单得多，但有三个常被忽略的关键点。</p>
+
+        <div style="text-align: center; margin: 0 0 20px 0; padding: 15px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+          <img src="./rdoq_dcost.png" alt="Dcost Calculation Diagram" style="max-width: 100%; height: auto; border-radius: 6px;">
+          <p class="diagram-caption" style="margin-bottom: 0;">图：左 — 两个候选的误差 d 与 Dcost 数值；右 — Parseval 定理保证变换域 SSE 与像素域 SSE 等价</p>
+        </div>
+
+        <h4 style="margin-top: 0; color: #3b82f6; border-bottom: 1px solid #bfdbfe; padding-bottom: 6px;">关键点 ①：误差要对“反量化重建值”算，而不是对 Level 算</h4>
+        <p style="color: #334155; line-height: 1.8;">
+          解码端拿到的是量化 Level，它会先<strong>反量化 (Dequant)</strong> 还原出一个重建系数 <code>unQuant = Level × Q<sub>step</sub></code>，再做反变换。所以真正的失真，是<strong>原始变换系数</strong>与<strong>反量化重建系数</strong>之间的差，而不是拿原值和 Level 直接比：
+        </p>
+        <div style="background: #f8fafc; padding: 14px 18px; border-radius: 6px; border: 1px solid #e2e8f0; color: #0f172a; margin-bottom: 8px; overflow-x: auto;">
+          $$ D_{cost}(L) = \big(\,C_{trans} - \underbrace{L \times Q_{step}}_{\text{反量化重建值}}\,\big)^2 \times \text{scale} $$
+        </div>
+        <p style="color: #64748b; font-size: 0.9em; margin: 0 0 15px 0;">抹零的代价就是 <code>L=0</code> 的特例：<code>D(0) = C<sub>trans</sub>² × scale</code>（整段系数能量全部变成误差）。</p>
+
+        <h4 style="margin-top: 25px; color: #3b82f6; border-bottom: 1px solid #bfdbfe; padding-bottom: 6px;">关键点 ②：在“变换域”直接算，省掉每个候选的反变换</h4>
+        <p style="color: #334155; line-height: 1.8;">
+          直觉上，求重建误差应该回到像素域：反量化 → 反变换 (IDCT) → 和原像素相减。但若对每个系数的每个候选都做一次 IDCT，开销根本无法接受。<br>
+          <strong>救命的数学：帕塞瓦尔定理 (Parseval)。</strong>由于 DCT/DST 是<strong>正交变换</strong>，它保能量——<strong>变换域里的平方误差之和，恒等于像素域里的平方误差之和</strong>（只差一个固定的归一化常数）。因此 RDOQ 完全可以<strong>留在系数域</strong>逐点累加平方误差，无需反变换回像素域，结果却完全等价。
+        </p>
+        <div class="critical-alert" style="margin-top: 12px;">
+          <strong>这正是 Dcost 能“逐系数独立、即算即比”的根基：</strong>失真项没有 CABAC 那种跨系数的上下文依赖，每个系数的 D 只跟它自己的幅值与候选 Level 有关，天然可并行。<span class="highlight">真正难、真正串行的瓶颈，全在下一节的 Bincost。</span>
+        </div>
+
+        <h4 style="margin-top: 25px; color: #3b82f6; border-bottom: 1px solid #bfdbfe; padding-bottom: 6px;">关键点 ③：硬件实现式（定点放大域，避除法/浮点）</h4>
+        <p style="color: #334155; line-height: 1.8;">
+          为了规避除法和浮点，HM/硬件并不真去算 <code>Level × Q<sub>step</sub></code>，而是在量化的“放大定标域”里做：设系数放大后的精确值为 <code>levelDouble = |C<sub>trans</sub>| × Q</code>，量化成 <code>L</code> 后在同一域的重建值是 <code>L &lt;&lt; qbits</code>，于是：
+        </p>
+        <div style="background: #f8fafc; padding: 14px 18px; border-radius: 6px; border: 1px solid #e2e8f0; color: #0f172a; margin-bottom: 8px; overflow-x: auto;">
+          $$ D_{cost}(L) = \big(\text{levelDouble} - (L \ll \text{qbits})\big)^2 \times \text{errScale} $$
+        </div>
+        <p style="color: #64748b; font-size: 0.9em; margin: 0 0 5px 0;">其中 <code>errScale</code> 是初始化时按量化步长与变换归一化预算好的定点缩放因子，作用是把“定标域的平方误差”换算成真实失真量纲，从而能直接和 <code>λ × Bincost</code> 相加比较。它与上面的概念式完全等价，只是把缩放搬进了乘法、避开了反量化除法。</p>
+
+        <div class="success" style="margin-top: 18px;">
+          <strong>举个例子 (Example)：C<sub>trans</sub> = 15 的两个候选失真</strong><br>
+          沿用<strong>上文整体判决示例</strong>：边缘系数 <code>C<sub>trans</sub> = 15</code>，SQ 量化为 <code>Level = 1</code>，其反量化重建值 <code>unQuant = 26</code>，失真定标 <code>scale = 1024</code>。
+          <ul style="margin-top: 8px; margin-bottom: 8px;">
+            <li><strong>保留 Level = 1：</strong>误差 d = |15 − 26| = 11 → <code>D(1) = 11² × 1024 = 123,904</code>。</li>
+            <li><strong>强制 Level = 0：</strong>误差 d = |15 − 0| = 15 → <code>D(0) = 15² × 1024 = 230,400</code>。</li>
+          </ul>
+          <strong>注意失真的单调性：</strong>越是保留大 Level，重建越准、D 越小（<code>D(1) &lt; D(0)</code>）。所以<strong>单看失真，永远偏向“保留”</strong>；是 1.3 节的码率项 <code>λ × Bincost</code> 把天平往“减弱/抹零”方向拉——两者如何在整体判决示例中拔河，1.1 节上文已完整展示。
+        </div>
+      </div>
+
+      <h3>1.3 Bincost（码率代价）的计算：从 CABAC 语法元素到分数比特</h3>
+      <div class="algorithm-steps">
+        <p style="color: #475569; margin-bottom: 15px;">在评估某个候选 Level 时，<code>Cost = Dcost + λ × Bincost</code>。上一节已讲清 Dcost（失真）如何由系数域平方误差求得；本节专注更棘手的 <strong>Bincost（码率代价）</strong>——精确估算 CABAC 编码这个 Level 到底要花多少比特。</p>
+        
+        <div style="text-align: center; margin: 20px 0; padding: 15px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+          <img src="./rdoq_cabac_pipeline.png" alt="CABAC Fractional Bits Estimation Pipeline" style="max-width: 100%; height: auto;">
+        </div>
+        
+        <p style="color: #475569; margin-bottom: 15px;">如上图所示，C-Model 的 <code>rdoq_coeff_est()</code> 函数会模拟真实的 CABAC 状态机更新，但不做实际的区间划分，而是查表获取理论上的<strong>“分数比特 (Fractional Bits)”</strong>。总比特消耗的计算公式为：</p>
+        <div style="background: #f1f5f9; padding: 10px 15px; border-radius: 6px; font-family: monospace; color: #0f172a; margin-bottom: 15px;">
+          Total Bits = bits(sig_coeff_flag) + bits(greater1) + bits(greater2) + bits(sign) + bits(level_rem)
+        </div>
+
+        <div style="background: #fefce8; border: 2px solid #eab308; padding: 20px; margin-bottom: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(234, 179, 8, 0.1);">
+          <h4 style="margin-top: 0; color: #854d0e; margin-bottom: 15px; font-size: 1.15em; border-bottom: 2px dashed #fbbf24; padding-bottom: 8px;">
+            <span style="font-size: 1.3em;">&#9881;&#65039;</span> &#20851;&#38190;&#21069;&#25552;&#65306;CABAC &#30721;&#29575;&#20195;&#20215;&#30340;&#22235;&#27493;&#35745;&#31639;&#38142;&#36335;
+          </h4>
+          <p style="color: #713f12; line-height: 1.6; margin-bottom: 15px;">
+            &#22312;&#35745;&#31639;&#19978;&#38754;&#20844;&#24335;&#20013;&#27599;&#19968;&#39033;&#30340; <strong>Fractional Bits</strong> &#26102;&#65292;&#30828;&#20214;/C-Model &#24517;&#39035;&#20005;&#26684;&#25353;&#29031;&#20197;&#19979;<strong>&#22235;&#27493;&#20018;&#34892;&#38142;&#36335;</strong>&#36880;&#27493;&#25512;&#23548;&#12290;&#36825;&#22235;&#27493;&#29615;&#29615;&#30456;&#25187;&#65292;&#32570;&#19968;&#19981;&#21487;&#65306;
+          </p>
+          <div style="display: flex; align-items: stretch; gap: 0; justify-content: center; flex-wrap: wrap; margin: 10px 0;">
+            <div style="background: #eff6ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 10px 12px; flex: 1; min-width: 150px; max-width: 200px; text-align: center;">
+              <div style="font-size: 1.5em; margin-bottom: 4px;">&#9312;</div>
+              <strong style="color: #1e40af; font-size: 0.95em;">&#30830;&#23450;&#35821;&#27861;&#20803;&#32032;&#30340;&#20540;</strong><br>
+              <span style="color: #1e3a8a; font-size: 0.8em; line-height: 1.4; display: inline-block; margin-top: 4px;">
+                &#26681;&#25454;&#20505;&#36873; Level &#30830;&#23450;&#27599;&#20010;&#26631;&#24535;&#30340;&#20540;&#65306;<br>
+                <code style="background: #dbeafe; padding: 1px 3px; border-radius: 2px; font-size: 0.95em;">sig = (L&gt;0)?1:0</code><br>
+                <code style="background: #dbeafe; padding: 1px 3px; border-radius: 2px; font-size: 0.95em;">gr1 = (L&gt;1)?1:0</code><br>
+                <code style="background: #dbeafe; padding: 1px 3px; border-radius: 2px; font-size: 0.95em;">sign &#8594; Bypass</code>
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; padding: 0 4px; font-size: 1.3em; color: #f59e0b; font-weight: bold;">&#8594;</div>
+            <div style="background: #fdf2f8; border: 2px solid #ec4899; border-radius: 8px; padding: 10px 12px; flex: 1; min-width: 150px; max-width: 200px; text-align: center;">
+              <div style="font-size: 1.5em; margin-bottom: 4px;">&#9313;</div>
+              <strong style="color: #be185d; font-size: 0.95em;">&#35821;&#27861;&#20803;&#32032; &#8594; ctxInc</strong><br>
+              <span style="color: #831843; font-size: 0.8em; line-height: 1.4; display: inline-block; margin-top: 4px;">
+                &#27599;&#31181;&#35821;&#27861;&#20803;&#32032;&#26377;<strong>&#29420;&#31435;&#30340;&#26144;&#23556;&#35268;&#21017;</strong>&#65306;<br>
+                sig_flag &#38656; BaseOffset + cnt<br>
+                gr1_flag &#29992;&#21382;&#21490;&#35745;&#25968;&#22120;<br>
+                sign_flag &#36208; Bypass &#26080;&#38656; ctx
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; padding: 0 4px; font-size: 1.3em; color: #f59e0b; font-weight: bold;">&#8594;</div>
+            <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 10px 12px; flex: 1; min-width: 150px; max-width: 200px; text-align: center;">
+              <div style="font-size: 1.5em; margin-bottom: 4px;">&#9314;</div>
+              <strong style="color: #92400e; font-size: 0.95em;">&#26597; Context_Array</strong><br>
+              <span style="color: #78350f; font-size: 0.8em; line-height: 1.4; display: inline-block; margin-top: 4px;">
+                &#29992; ctxInc &#20316;&#20026; SRAM &#22320;&#22336;<br>
+                &#35835;&#20986; <strong>m_ucState</strong><br>
+                (&#21547; pStateIdx &#21644; valMPS)
+              </span>
+            </div>
+            <div style="display: flex; align-items: center; padding: 0 4px; font-size: 1.3em; color: #f59e0b; font-weight: bold;">&#8594;</div>
+            <div style="background: #ecfdf5; border: 2px solid #10b981; border-radius: 8px; padding: 10px 12px; flex: 1; min-width: 150px; max-width: 200px; text-align: center;">
+              <div style="font-size: 1.5em; margin-bottom: 4px;">&#9315;</div>
+              <strong style="color: #065f46; font-size: 0.95em;">&#26597; Entropy_LUT</strong><br>
+              <span style="color: #064e3b; font-size: 0.8em; line-height: 1.4; display: inline-block; margin-top: 4px;">
+                &#29992; m_ucState + flag_val<br>
+                &#26500;&#36896;&#26597;&#34920;&#22320;&#22336;<br>
+                &#8594; &#35835;&#20986; <strong>Fractional Bits</strong>
+              </span>
+            </div>
+          </div>
+          <div style="background: #fef9c3; border-left: 4px solid #ca8a04; padding: 10px 14px; border-radius: 4px; margin-top: 15px;">
+            <strong style="color: #854d0e; font-size: 0.95em;">&#128161; &#20026;&#20160;&#20040;&#36825;&#20010;&#38142;&#36335;&#22914;&#27492;&#20851;&#38190;&#65311;</strong><br>
+            <span style="color: #713f12; font-size: 0.9em; line-height: 1.6;">
+              <strong>&#30828;&#20214;&#35270;&#35282;&#65306;</strong>&#36825;&#22235;&#27493;&#22312;&#27969;&#27700;&#32447;&#19978;&#24517;&#39035;&#20005;&#26684;&#20018;&#34892;&#25191;&#34892;&#8212;&#8212;&#31532;&#9313;&#27493;&#30340; ctxInc &#35745;&#31639;&#20381;&#36182;&#31532;&#9312;&#27493;&#30830;&#23450;&#30340;&#35821;&#27861;&#20803;&#32032;&#31867;&#22411;&#65288;&#19981;&#21516;&#35821;&#27861;&#20803;&#32032;&#36208;&#23436;&#20840;&#19981;&#21516;&#30340;&#23547;&#22336;&#36923;&#36753;&#65289;&#65292;&#31532;&#9314;&#27493;&#30340; SRAM &#35835;&#21462;&#20381;&#36182;&#31532;&#9313;&#27493;&#31639;&#20986;&#30340;&#22320;&#22336;&#65292;&#31532;&#9315;&#27493;&#30340; ROM &#26597;&#34920;&#21448;&#20381;&#36182;&#31532;&#9314;&#27493;&#35835;&#20986;&#30340; m_ucState&#12290;&#36825;&#26465;<strong>&#22235;&#32423;&#20018;&#34892;&#38142;&#36335;&#30340;&#24635;&#24310;&#36831;</strong>&#23601;&#26159;&#21333;&#20010;&#31995;&#25968; CABAC &#30721;&#29575;&#20272;&#31639;&#30340;&#26102;&#24207;&#29942;&#39048;&#12290;<br>
+              <strong>Bypass &#25463;&#24452;&#65306;</strong>&#24182;&#38750;&#25152;&#26377;&#35821;&#27861;&#20803;&#32032;&#37117;&#38656;&#35201;&#36208;&#23436;&#20840;&#37096;&#22235;&#27493;&#65281;&#20687; <code>sign_flag</code> &#22312;&#31532;&#9312;&#27493;&#23601;&#34987;&#35782;&#21035;&#20026; Bypass &#27169;&#24335;&#65292;&#30452;&#25509;&#36755;&#20986;&#22266;&#23450;&#20195;&#20215; 32768&#65288;1 bit&#65289;&#65292;&#23436;&#20840;&#36339;&#36807;&#31532;&#9313;&#9314;&#9315;&#27493;&#65292;&#36825;&#26159;&#26631;&#20934;&#30041;&#32473;&#30828;&#20214;&#30340;&#20851;&#38190;&#21152;&#36895;&#36890;&#36947;&#12290;
+            </span>
+          </div>
+        </div>
+
+        <div style="background: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+          <h4 style="margin-top: 0; color: #0369a1; margin-bottom: 10px;">核心解密：上下文分数比特 (Fractional Bits) 与 128 级熵值查表 (Entropy LUT) 的底层逻辑</h4>
+          <p style="margin: 0; color: #334155; line-height: 1.6;">
+            在 CABAC 中，每个上下文模型 (Context Model) 都在不断追踪特定语法的概率状态，表现为一个 0~63 的整数状态索引 <code>pStateIdx</code>（代表 LPS 出现的概率），再加上 1 位的 <code>valMPS</code> 标志。两者组合构成了 128 个可能的上下文状态。<br>
+            
+            <div style="background: rgba(255,255,255,0.6); padding: 12px; margin: 15px 0; border-radius: 6px; border-left: 3px solid #0284c7;">
+              <strong style="color: #0369a1;">前置寻址与模型提取：上下文依赖的精确推导 (Context Derivation)</strong><br>
+              在查 <code>Entropy_LUT</code> 之前，C-Model 必须先从一维的 <code>Context_Array</code> 中定位当前标志位专属的概率模型，从中提取出 <code>pStateIdx</code> 和 <code>valMPS</code>。为了满足硬件架构师对时序和状态机的精准控制需求，以下展示 CABAC 中最复杂的 <strong><code>ctxInc</code> 动态增量</strong>计算与 <strong><code>Context_Array</code> 初始化</strong>的数学级流向：
+              
+              <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+                <img src="./rdoq_ctx_derivation_flow_py.png" alt="Context Derivation Flow" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+              </div>
+              
+              <div style="background: #fffbeb; border-left: 5px solid #f59e0b; padding: 15px; margin-bottom: 25px; border-radius: 6px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);">
+                <strong style="color: #b45309; font-size: 1.1em; display: flex; align-items: center; gap: 8px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  架构巨坑警告：Context_Array 到底多久更新一次？
+                </strong>
+                <p style="margin-top: 10px; margin-bottom: 0; color: #92400e; font-size: 0.95em; line-height: 1.6;">
+                  初学者极易误以为 Context_Array 只在 Slice/CTU 级别（即所谓的“初始化”）才更新一次，这是一个致命误区！必须严格区分 <strong>真实熵编码 (True CABAC)</strong> 与 <strong>RDOQ 预估 (RDOQ Estimation)</strong>：<br>
+                  <strong style="color: #b45309; display: inline-block; margin-top: 6px;">1. 真实 CABAC 阶段：</strong>它是 <strong>“像素/标志位 (Bin)” 级别</strong> 的闭环更新！每编码完 <strong>1 个比特</strong>，SRAM 里的状态机 <code>m_ucState</code> 就会根据刚刚编出的是 0 还是 1 立刻自我迭代覆写。这就是 CABAC 高压缩率的灵魂——极致的自适应。<br>
+                  <strong style="color: #b45309; display: inline-block; margin-top: 6px;">2. RDOQ 预估阶段 (本图核心)：</strong>由于 RDOQ 是在做“假设性”代价计算（如果我把这个像素抹零，代价是多少？），如果在评估候选值时更新了 SRAM，就会污染后续真实的概率模型。因此，在 RDOQ 硬件流水线中，通常采用 <strong>冻结模型 (Frozen Context)</strong>：只读不写，使用 Slice 初始化的初值贯穿整个 CU；或者更精细的 <strong>缓存副本备份 (Shadow Copy)</strong>：在每个 TU 评估结束后进行状态回滚 (Rollback)！
+                </p>
+              </div>
+              
+              <p style="margin-top: 25px; margin-bottom: 10px; font-weight: bold; color: #1e293b; font-size: 1.1em; border-bottom: 1px dashed #cbd5e1; padding-bottom: 5px;">1. 动态增量 ctxInc 计算公式 (以 sig_coeff_flag 为例)</p>
+              <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; color: #334155; margin-bottom: 20px; overflow-x: auto;">
+                <div style="font-size: 1.1em; color: #0f172a; margin-bottom: 15px;">
+                  $$ \text{ctxInc} = \text{BaseOffset} + \text{LumaCGOffset} + \text{cnt} $$
+                </div>
+                <ul style="margin: 0; padding-left: 20px; line-height: 2;">
+                  <li><strong>BaseOffset</strong>:
+                    $$ \text{BaseOffset} = \begin{cases} 9 & \text{if } \text{Size} = 8\times8 \text{ and } \text{DiagScan} \\ 15 & \text{if } \text{Size} = 8\times8 \text{ and } \text{NonDiagScan} \\ 21 & \text{if } \text{Luma} \text{ and } \text{Size} > 8\times8 \\ 12 & \text{if } \text{Chroma} \text{ and } \text{Size} > 8\times8 \end{cases} \quad \color{#64748b}{\text{(由块尺寸和扫描模式决定的基准地址)}} $$
+                    <div style="background: #fdf2f8; border-left: 4px solid #f43f5e; padding: 10px 15px; margin-top: 10px; margin-bottom: 5px; border-radius: 4px;">
+                      <strong style="color: #be123c; font-size: 0.95em;">💡 深度解析：是谁决定了 DiagScan 与 NonDiagScan？</strong><br>
+                      <span style="color: #881337; font-size: 0.9em; line-height: 1.6; display: block; margin-top: 5px;">
+                        这是由预测引擎隐式决定的 <strong>MDCS (模式依赖系数扫描)</strong> 机制。解码器无需读取额外码流，直接根据当前的 <code>Intra PredMode (帧内预测方向)</code> 盲推：<br>
+                        &bull; 若 PredMode 为 22~30 (接近垂直)，残差能量挤压在水平轴，强制切为 <strong>HorScan (水平扫描)</strong>。<br>
+                        &bull; 若 PredMode 为 6~14 (接近水平)，残差能量挤压在垂直轴，强制切为 <strong>VerScan (垂直扫描)</strong>。<br>
+                        &bull; HorScan 和 VerScan 统称为 <strong>NonDiagScan</strong>。由于它们的非零概率分布变了，CABAC 标准强制为它们劈出独立的概率模型（如跑到基址 15 取模型）。<br>
+                        &bull; 其他模式 (如 Inter 帧间块、Planar/DC、大于 8x8 的块) 均无脑采用默认的 <strong>DiagScan (对角线扫描)</strong>。这种 CABAC 对预测模块的强后向依赖，是硬件流水线时序设计的一大痛点！
+                      </span>
+                    </div>
+                  </li>
+                  <li style="margin-top: 15px;"><strong>LumaCGOffset</strong>:
+                    $$ \text{LumaCGOffset} = \begin{cases} 3 & \text{if } \text{Luma} \text{ and } (\text{posX} \ge 4 \text{ or } \text{posY} \ge 4) \\ 0 & \text{otherwise} \end{cases} \quad \color{#64748b}{\text{(若脱离左上角 DC 区域，增加额外偏移)}} $$
+                  </li>
+                  <li style="margin-top: 15px;"><strong>cnt (空间模板坍缩)</strong>: 
+                    $$ \text{cnt} = f(\text{posX} \pmod 4, \text{posY} \pmod 4, \text{patternSigCtx}) \quad \color{#64748b}{\text{(基于邻居状态的微观坍缩偏移)}} $$
+                  </li>
+                </ul>
+                <div style="text-align: center; margin-top: 25px; background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                  <img src="./rdoq_cnt_spatial_logic_py.png" alt="Spatial Logic of cnt" style="max-width: 100%; height: auto;">
+                </div>
+              </div>
+
+              <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #a7f3d0; margin-top: 15px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.05);">
+                <strong style="color: #065f46; font-size: 1.05em;">📌 实战推演：图解 ctxInc 坐标计算</strong><br>
+                <p style="margin-top: 8px; color: #064e3b; line-height: 1.6;">假设在一个 <code>8x8 (log2BlockSize=3)</code> 的 Luma TU 中，我们逆向扫描到了坐标 <strong><code>(posX=5, posY=6)</code></strong>，且它所在周边模板中尚未编码任何非零系数 (即 <code>patternSigCtx=0</code>)。</p>
+                <div style="font-family: monospace; font-size: 0.95em; color: #064e3b; margin-top: 10px; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 4px;">
+                  1) BaseOffset = <strong>21</strong> (因为 Size&ge;8x8, Luma 通道)<br>
+                  2) LumaCGOffset = <strong>3</strong> (因为 5>>2=1, 6>>2=1，和为2>0，跳出了 DC 所在的左上角 CG)<br>
+                  3) posXinSubset = 5 & 3 = <strong>1</strong>; posYinSubset = 6 & 3 = <strong>2</strong>。<br>
+                  4) 因为 patternSigCtx=0，且 1+2=3 > 2，走 false 分支，所以 <strong>cnt = 0</strong>。<br>
+                  <strong style="display: block; margin-top: 8px; font-size: 1.1em; color: #047857; background: #d1fae5; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #10b981;">最终推导出的 ctxInc = 21 + 3 + 0 = 24！</strong>
+                </div>
+                <p style="margin-top: 8px; margin-bottom: 0; color: #064e3b; font-size: 0.9em;">硬件拿到这个 <code>24</code> 的偏移量后，加上该语法元素的全局基址，就能从 SRAM 的 Context_Array 中瞬间读出属于这个坐标的 8-bit 上下文概率状态 (m_ucState) 了。</p>
+              </div>
+
+              <p style="margin-top: 25px; margin-bottom: 10px; font-weight: bold; color: #1e293b; font-size: 1.1em; border-bottom: 1px dashed #cbd5e1; padding-bottom: 5px;">2. Context_Array 内部节点 (m_ucState) 初始化公式</p>
+              <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; color: #334155; overflow-x: auto;">
+                <p style="margin-top: 0; margin-bottom: 15px;">在每个 Slice 编码的伊始，必须利用规范表（ITU-T 官方标准文档中硬编码的最佳初始概率魔数）中的 <code>initValue</code> 与当前 <code>QP</code> 初始化上述一维阵列中的每一个 8-bit 节点：</p>
+                <div style="background: #fdf2f8; border-left: 4px solid #f43f5e; padding: 10px 15px; margin-bottom: 15px; border-radius: 4px;">
+                  <strong style="color: #be123c; font-size: 0.95em;">💡 深度解析：什么是“规范表中的 initValue”？</strong><br>
+                  <span style="color: #881337; font-size: 0.9em; line-height: 1.6; display: block; margin-top: 5px;">
+                    在官方标准中，专家通过海量视频序列的统计分析，为每一种语法元素硬编码了最优的初始概率值 (8-bit 整数)。<br>
+                    在 HM (HEVC C-Model) 源码中，这些规范表被完整地定义在 <code>TLibCommon/ContextTables.h</code> 文件里。例如最核心的非零系数标志位 <code>sig_coeff_flag</code> 的规范表如下：
+                  </span>
+                  <pre style="background: #fff0f2; color: #831843; padding: 8px; border-radius: 4px; border: 1px solid #fbcfe8; font-size: 0.85em; margin-top: 8px; overflow-x: auto; font-family: monospace;">
+static const UChar INIT_SIG_FLAG[3][NUM_SIG_FLAG_CTX] = 
+{
+  // 第一维：对应 I Slice (帧内编码) 的初始值
+  { 170,  154,  139,  153,  139,  123,  123,   63,  124, ... }, 
+  // 第二维：对应 P Slice (前向预测) 的初始值
+  { 155,  154,  139,  153,  139,  123,  123,   63,  153, ... }, 
+  // 第三维：对应 B Slice (双向预测) 的初始值
+  { 111,  111,  125,  110,  110,   94,  124,  108,  124, ... }, 
+};</pre>
+                  <span style="color: #881337; font-size: 0.9em; line-height: 1.6; display: block; margin-top: 5px;">
+                    硬件在每个 Slice 刚开始时，根据当前是 I/P/B 帧，拿着该语法元素对应的 <code>ctxInc</code> 偏移量作为数组下标，从这种表格里“抠”出一个查表数字。然后代入下面的数学公式，结合当前的 QP，计算出真正的动态初始概率。
+                  </span>
+                </div>
+                <div style="font-size: 1.05em; line-height: 2.2;">
+                  $$ \text{slope} = \left(\left\lfloor \frac{\text{initValue}}{16} \right\rfloor \times 5\right) - 45 \quad \color{#64748b}{\text{(根据预设提取斜率因子)}} $$
+                  $$ \text{offset} = ((\text{initValue} \pmod{16}) \times 8) - 16 \quad \color{#64748b}{\text{(根据预设提取截距因子)}} $$
+                  $$ \text{initState} = \text{Clip3}\left(1, 126, \left\lfloor \frac{\text{slope} \times \text{QP}}{16} \right\rfloor + \text{offset}\right) \quad \color{#64748b}{\text{(结合当前 Slice 的 QP 计算初始状态)}} $$
+                  $$ \text{valMPS} = \begin{cases} 1 & \text{if } \text{initState} \ge 64 \\ 0 & \text{otherwise} \end{cases} \quad \color{#64748b}{\text{(提取最高概率符号 MPS)}} $$
+                  $$ \text{pStateIdx} = \begin{cases} \text{initState} - 64 & \text{if } \text{initState} \ge 64 \\ 63 - \text{initState} & \text{otherwise} \end{cases} \quad \color{#64748b}{\text{(提取 0~63 的概率状态索引)}} $$
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; color: #991b1b; text-align: center;">
+                  <span style="font-size: 1.2em; font-weight: bold;">
+                    $$ \mathbf{m\_ucState} = (\mathbf{pStateIdx} \ll 1) \ | \ \mathbf{valMPS} \quad \color{#991b1b}{\text{(拼接为 8-bit 最终状态字写入 SRAM)}} $$
+                  </span>
+                </div>
+                
+                <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #a7f3d0; margin-top: 20px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.05); text-align: left;">
+                  <strong style="color: #065f46; font-size: 1.05em;">📌 实战推演：图解 CABAC 初始状态推导</strong><br>
+                  <p style="margin-top: 8px; color: #064e3b; line-height: 1.6;">假设标准规范中规定某个上下文的初始值 <strong><code>initValue = 184</code></strong>，且当前 Slice 的量化参数 <strong><code>QP = 37</code></strong>。</p>
+                  <div style="font-family: monospace; font-size: 0.95em; color: #064e3b; margin-top: 10px; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 4px;">
+                    1) <strong>slope</strong> = &lfloor;184 / 16&rfloor; &times; 5 - 45 = 11 &times; 5 - 45 = <strong>10</strong><br>
+                    2) <strong>offset</strong> = (184 mod 16) &times; 8 - 16 = 8 &times; 8 - 16 = <strong>48</strong><br>
+                    3) <strong>initState</strong> = Clip3(1, 126, &lfloor;(10 &times; 37) / 16&rfloor; + 48) = Clip3(1, 126, 23 + 48) = <strong>71</strong><br>
+                    4) 因为 71 &ge; 64，所以最高概率符号 <strong>valMPS = 1</strong>。<br>
+                    5) 概率状态索引 <strong>pStateIdx</strong> = 71 - 64 = <strong>7</strong>。<br>
+                    <strong style="display: block; margin-top: 8px; font-size: 1.1em; color: #047857; background: #d1fae5; padding: 4px 8px; border-radius: 4px; border-left: 3px solid #10b981;">最终写入 SRAM 的字：m_ucState = (7 &lt;&lt; 1) | 1 = 15 (即二进制 00001111)</strong>
+                  </div>
+                  <p style="margin-top: 8px; margin-bottom: 0; color: #064e3b; font-size: 0.9em;">这短短的 8 个 bit，完美浓缩了 <code>valMPS</code>（最低位为 1）和 <code>pStateIdx</code>（高 7 位为 7），硬件在随后查 Entropy_LUT 时直接将这 8-bit 当作地址线送入即可读出代价！</p>
+                </div>
+              </div>
+              
+              <p style="margin-top: 25px; margin-bottom: 10px; font-weight: bold; color: #1e293b; font-size: 1.1em; border-bottom: 1px dashed #cbd5e1; padding-bottom: 5px;">3. 其他核心语法元素的上下文或旁路机制 (Bypass)</p>
+              <div style="background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; color: #334155; margin-bottom: 10px; overflow-x: auto;">
+                <p style="margin-top: 0; margin-bottom: 15px;">正如你所敏锐察觉的，并非所有的语法元素都像 <code>sig_coeff_flag</code> 那么复杂！为了在压缩率和并行度之间取得平衡，HEVC/VVC 标准对后续的标志采用了不同的降维策略：</p>
+                <ul style="margin: 0; padding-left: 20px; line-height: 2;">
+                  <li><strong>greater1_flag 与 greater2_flag</strong>:
+                    <div style="font-size: 1.05em; color: #0f172a; margin-top: 10px; line-height: 2.2;">
+                      $$ \text{ctxInc}_{gr1} = (c_1 > 0) \ ? \ (c_1 > 1 \ ? \ 2 : 1) : 0 \quad \color{#64748b}{\text{(由同块内已编码的大于0的系数个数 } c_1 \text{ 决定)}} $$
+                      $$ \text{ctxInc}_{gr2} = (c_2 > 0) \ ? \ 1 : 0 \quad \color{#64748b}{\text{(由同块内已编码的大于1的系数个数 } c_2 \text{ 决定)}} $$
+                    </div>
+                    <span style="color: #475569; font-size: 0.9em; display: inline-block; margin-top: 5px; line-height: 1.5;">它们的核心思想是抛弃二维空间邻居，转而利用<strong>当前 TU/CG 内的历史编码统计值</strong>作为上下文。这种一维累加器极其容易被硬件维护，从而大幅缩减寻址路径！</span>
+                  </li>
+                  <li style="margin-top: 15px;"><strong>sign_flag (符号位)</strong>:
+                    <div style="font-size: 1.05em; color: #0f172a; margin-top: 10px;">
+                      $$ \text{Cost}_{sign} = 32768 \quad \color{#991b1b}{\text{(Bypass 模式：无 Context，恒定消耗 1 个真实比特)}} $$
+                    </div>
+                    <span style="color: #475569; font-size: 0.9em; display: inline-block; margin-top: 5px; line-height: 1.5;">由于正负号出现的概率极其接近 0.5，标准规定其直接走 <strong>Bypass（旁路）模式</strong>。硬件不需要去查 Context_Array，也不会更新任何状态机，直接暴力写入 1 比特代价，完美解除依赖！</span>
+                  </li>
+                  <li style="margin-top: 15px;"><strong>level_rem (剩余绝对值)</strong>:
+                    <div style="font-size: 1.05em; color: #0f172a; margin-top: 10px;">
+                      $$ \text{Cost}_{rem} = \text{GolombRice}( \text{Level} - \text{BaseLevel}, \ cRiceParam ) \times 32768 $$
+                    </div>
+                    <span style="color: #475569; font-size: 0.9em; display: inline-block; margin-top: 5px; line-height: 1.5;">对于极大系数，超出了前置 flag 表达范围的值也会进入 Bypass 模式。它使用哥伦布-莱斯编码 (Golomb-Rice)，根据当前维护的莱斯参数 <code>cRiceParam</code> 动态决定消耗多少比特，同样零上下文依赖。</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            为了在 RDOQ 中极速估算编码该语法的代价，必须避免极其耗时的对数（-log<sub>2</sub>(p)）和浮点运算。因此，C-Model 在初始化时，会预先通过香农熵公式计算好一张长度为 128 的 <strong>熵值查表 (Entropy LUT)</strong>。<br><br>
+            
+            <div style="text-align: center; margin: 15px 0; padding: 10px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+              <img src="./rdoq_entropy_lut.png" alt="CABAC Entropy LUT Mathematical Curves" style="max-width: 100%; height: auto; border-radius: 6px;">
+              <p class="diagram-caption" style="margin-bottom: 0;">图：P(LPS) 与 Cost(MPS/LPS) 随 pStateIdx 的变化曲线（算式见下方建表三步）</p>
+            </div>
+
+            <div style="background: #eef2ff; border: 2px solid #6366f1; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);">
+              <h4 style="margin-top: 0; color: #4338ca; margin-bottom: 15px; font-size: 1.1em; border-bottom: 2px dashed #c7d2fe; padding-bottom: 8px;">
+                <span style="font-size: 1.2em;">&#127959;&#65039;</span> 这张 128 项的 Entropy_LUT 到底是怎么“算”出来的？（建表三步）
+              </h4>
+              <p style="color: #312e81; line-height: 1.7; margin-bottom: 8px;">
+                下图仅展示概率状态与代价曲线的<strong>形态关系</strong>（不含算式）。128 项 Entropy_LUT 的具体计算公式与建表步骤见下方文字。
+              </p>
+              <p style="color: #312e81; line-height: 1.7; margin-bottom: 15px;">
+                这张表并非写死的魔数，而是编码器初始化时，用<strong>香农信息量公式</strong>对 64 个概率状态逐一离线计算、再定点放大后固化进 ROM 的。建表只需三步：
+              </p>
+
+              <p style="margin: 15px 0 8px 0; font-weight: bold; color: #3730a3;">第 1 步：把概率状态 (pStateIdx) 映射成 LPS 概率</p>
+              <p style="color: #312e81; line-height: 1.7; margin: 0 0 10px 0;">
+                CABAC 把 LPS 出现概率离散成 64 档 (pStateIdx = 0~63)。状态越大越“笃定”(LPS 越罕见)，相邻档之间按固定比例 &alpha; 等比衰减：
+              </p>
+              <div style="background: #f8fafc; padding: 12px 16px; border-radius: 6px; border: 1px solid #e2e8f0; color: #0f172a; margin-bottom: 8px; overflow-x: auto;">
+                $$ p_{LPS}(s) = 0.5 \times \alpha^{s}, \quad \alpha = \left(\frac{0.01875}{0.5}\right)^{1/63} \approx 0.9492 $$
+              </div>
+              <p style="color: #64748b; font-size: 0.9em; margin: 0 0 15px 0;">于是 s=0 时 p<sub>LPS</sub>=0.5（最不确定，编谁都要 1 bit）；s=63 时 p<sub>LPS</sub>&approx;0.01875（最笃定，编 MPS 几乎不花钱）。</p>
+
+              <p style="margin: 15px 0 8px 0; font-weight: bold; color: #3730a3;">第 2 步：把概率换成比特数（香农信息量）并定点放大</p>
+              <p style="color: #312e81; line-height: 1.7; margin: 0 0 10px 0;">
+                对每一档状态，分别预算“编 MPS”和“编 LPS”两种事件的理论比特数，再 &times;32768（1 bit = 32768）取整，存为一对相邻表项：
+              </p>
+              <div style="background: #f8fafc; padding: 12px 16px; border-radius: 6px; border: 1px solid #e2e8f0; color: #0f172a; margin-bottom: 8px; line-height: 2.4; overflow-x: auto;">
+                $$ \text{LUT}[2s] = \text{round}\big(-\log_2(1 - p_{LPS}(s)) \times 32768\big) \quad \color{#64748b}{\text{(编 MPS 的代价，偶地址)}} $$
+                $$ \text{LUT}[2s+1] = \text{round}\big(-\log_2(p_{LPS}(s)) \times 32768\big) \quad \color{#64748b}{\text{(编 LPS 的代价，奇地址)}} $$
+              </div>
+              <p style="color: #64748b; font-size: 0.9em; margin: 0 0 15px 0;">64 档 &times; 2 = 128 项。注意地址最低位恰好就是“这次编的是不是 LPS”，与查表时的 <code>(flag_val ^ valMPS)</code> 完美对齐——这绝非巧合，而是为硬件寻址刻意设计的。</p>
+
+              <p style="margin: 15px 0 8px 0; font-weight: bold; color: #3730a3;">第 3 步：固化进 ROM，运行期只查不算</p>
+              <p style="color: #312e81; line-height: 1.7; margin: 0 0 15px 0;">
+                整张 128 项表在 Slice/编码器启动时只算一次，之后运行期就是一块纯组合逻辑的 ROM，单周期查出，彻底规避了昂贵的 <code>log2</code> 与浮点运算。
+              </p>
+
+              <p style="margin: 15px 0 8px 0; font-weight: bold; color: #3730a3;">建表结果速览（抽样几档）</p>
+              <table style="width: 100%; border-collapse: collapse; font-size: 0.9em; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                <thead>
+                  <tr style="background: #4338ca; color: white;">
+                    <th style="padding: 8px 10px; text-align: left;">pStateIdx s</th>
+                    <th style="padding: 8px 10px; text-align: left;">p<sub>LPS</sub>(s)</th>
+                    <th style="padding: 8px 10px; text-align: left;">编 MPS：LUT[2s]</th>
+                    <th style="padding: 8px 10px; text-align: left;">编 LPS：LUT[2s+1]</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 6px 10px;">0</td><td style="padding: 6px 10px;">0.500</td><td style="padding: 6px 10px;">1.000 b &rarr; 32768</td><td style="padding: 6px 10px;">1.000 b &rarr; 32768</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e5e7eb; background: #eef2ff;">
+                    <td style="padding: 6px 10px;"><strong>7</strong></td><td style="padding: 6px 10px;"><strong>0.347</strong></td><td style="padding: 6px 10px;"><strong>0.615 b &rarr; 20160</strong></td><td style="padding: 6px 10px;"><strong>1.526 b &rarr; 50010</strong></td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #e5e7eb;">
+                    <td style="padding: 6px 10px;">31</td><td style="padding: 6px 10px;">0.099</td><td style="padding: 6px 10px;">0.151 b &rarr; 4949</td><td style="padding: 6px 10px;">3.331 b &rarr; 109140</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 10px;">62</td><td style="padding: 6px 10px;">0.0197</td><td style="padding: 6px 10px;">0.029 b &rarr; 943</td><td style="padding: 6px 10px;">5.663 b &rarr; 185580</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style="color: #64748b; font-size: 0.85em; margin: 10px 0 0 0;">&#128161; 表中高亮的 <strong>s=7</strong> 一行，正是后文实战推演要用到的状态 (m_ucState=15 &rarr; pStateIdx=7)。可见 MPS 侧代价随状态升高而骤降，LPS 侧则越来越贵；少数极罕见的 LPS 项会超过 16-bit，工程上用更宽的整数或上限钳位来存。</p>
+            </div>
+
+            <div style="background: #f0f9ff; border: 2px solid #0284c7; padding: 20px; border-radius: 8px; margin: 20px 0; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);">
+              <h4 style="margin-top: 0; color: #0369a1; margin-bottom: 15px; font-size: 1.1em; border-bottom: 2px dashed #7dd3fc; padding-bottom: 8px;">
+                <span style="font-size: 1.2em;">🔍</span> 深度解析：用 m_ucState 查 Entropy_LUT 的完整硬件流程
+              </h4>
+              <p style="color: #0c4a6e; line-height: 1.7; margin-bottom: 15px;">
+                前文已经讲过，每个上下文节点在 SRAM 中的存储格式是 <code>m_ucState = (pStateIdx &lt;&lt; 1) | valMPS</code>，其中高 7 位是概率状态索引 (0~63)，最低 1 位是最高概率符号 (MPS)。当硬件需要评估“编码某个二值符号 (bin) 的代价”时，会按以下流程执行：
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                  <span style="background: #0284c7; color: white; font-weight: bold; padding: 4px 10px; border-radius: 50%; font-size: 0.95em; flex-shrink: 0;">1</span>
+                  <div style="color: #0c4a6e; line-height: 1.6;">
+                    <strong>拆分 m_ucState：</strong>硬件通过简单的位操作从 8-bit 的 m_ucState 中提取出两个关键信息：<br>
+                    <span style="font-family: monospace; background: #e0f2fe; padding: 2px 6px; border-radius: 3px;">pStateIdx = m_ucState >> 1</span>（概率状态索引，0~63）<br>
+                    <span style="font-family: monospace; background: #e0f2fe; padding: 2px 6px; border-radius: 3px;">valMPS = m_ucState & 1</span>（最高概率符号，0 或 1）
+                  </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                  <span style="background: #0284c7; color: white; font-weight: bold; padding: 4px 10px; border-radius: 50%; font-size: 0.95em; flex-shrink: 0;">2</span>
+                  <div style="color: #0c4a6e; line-height: 1.6;">
+                    <strong>构造查表地址：</strong>结合当前要编码的二值符号 <code>flag_val</code>（0 或 1），硬件将 <code>flag_val</code> 与 <code>valMPS</code> 进行<strong>异或 (XOR)</strong> 操作。异或的巧妙之处在于：<br>
+                    • 若 <code>flag_val == valMPS</code>（即编码的是高概率事件 MPS），XOR 结果为 0 → 查到的是“低代价”（因为高概率事件耗费的比特数少）<br>
+                    • 若 <code>flag_val != valMPS</code>（即编码的是低概率事件 LPS），XOR 结果为 1 → 查到的是“高代价”（因为低概率事件耗费的比特数多）
+                  </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                  <span style="background: #0284c7; color: white; font-weight: bold; padding: 4px 10px; border-radius: 50%; font-size: 0.95em; flex-shrink: 0;">3</span>
+                  <div style="color: #0c4a6e; line-height: 1.6;">
+                    <strong>一次查表得到 Fractional Bits：</strong>将拼接后的地址送入预计算好的 Entropy_LUT（128 行，每行存储一个定点整数：1 bit = 32768），直接读出对应的分数比特代价。<br>
+                    <strong style="color: #0369a1;">硬件实现上，这就是一个纯组合逻辑的 ROM 查表，单周期即可完成，无任何迭代或反馈。</strong>
+                  </div>
+                </div>
+              </div>
+              <div style="background: #ffffff; padding: 12px 16px; border-radius: 6px; border: 1px solid #bae6fd; text-align: center; font-family: monospace; font-size: 1.05em; color: #0369a1; font-weight: bold;">
+                bit_cost = Entropy_LUT[ (pStateIdx &lt;&lt; 1) | (flag_val ^ valMPS) ]
+              </div>
+              <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 12px 15px; border-radius: 4px; margin-top: 15px;">
+                <strong style="color: #065f46; font-size: 0.95em;">📌 实战举例：</strong><br>
+                <span style="color: #064e3b; font-size: 0.9em; line-height: 1.7;">
+                  假设前文推算出的 <code>m_ucState = 15</code>（即二进制 00001111），现在要计算编码 <code>sig_coeff_flag = 1</code> 的代价：<br>
+                  1) pStateIdx = 15 >> 1 = <strong>7</strong>，valMPS = 15 & 1 = <strong>1</strong><br>
+                  2) flag_val = 1，flag_val ^ valMPS = 1 ^ 1 = <strong>0</strong>（说明编码的是 MPS 事件，代价低）<br>
+                  3) 查表地址 = (7 &lt;&lt; 1) | 0 = <strong>14</strong><br>
+                  4) bit_cost = Entropy_LUT[14]，读出对应的定点整数 ≈ 20160（即 20160 / 32768 ≈ 0.615 bits）→ 编码这个高概率 (MPS) 事件，代价不到 1 bit！
+                </span>
+              </div>
+            </div>
+
+            <p style="margin: 0; color: #334155; line-height: 1.6;">
+            <strong>定点放大的魅力：</strong>通过预将浮点对数转化为定点整数（1 真实比特 = 32768 分数比特），原本复杂的概率计算被彻底降维。这就是为什么一个看似 1.2 bits 的代价，在硬件寄存器里其实是一个巨大的整数 <code>39321</code>！
+          </p>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #eef2ff, #ecfeff); border: 2px solid #6366f1; border-radius: 12px; margin: 25px 0; overflow: hidden; box-shadow: 0 10px 25px rgba(99,102,241,0.08);">
+          <div style="background: #4338ca; color: white; padding: 14px 20px; font-size: 16px; font-weight: bold;">
+            🎯 完整实战推演：一个 sig_coeff_flag 从「坐标」到「bit 数」的四步全链路
+          </div>
+          <div style="padding: 22px 25px;">
+            <p style="margin-top: 0; color: #334155; line-height: 1.7;">
+              <strong>设定场景：</strong>一个 <code>8&times;8 Luma TU</code>（I-Slice，<code>QP=37</code>，对角扫描 DiagScan），逆向扫描到坐标 <strong><code>(posX=5, posY=6)</code></strong>。当前候选 Level &ge; 1（即该系数非零，要编 <code>sig_coeff_flag = 1</code>），且周边模板尚无非零系数 <code>patternSigCtx=0</code>。我们一路算到底，看这 1 个 flag 到底花多少 bit。
+            </p>
+
+            <div style="background: #ffffff; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 14px 18px; margin: 14px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+              <strong style="color: #1e40af;">① 语法元素 &rarr; ctxInc（地址是怎么映射出来的）</strong>
+              <div style="font-family: monospace; font-size: 0.9em; color: #1e293b; margin-top: 8px; background: #f8fafc; padding: 10px; border-radius: 4px; line-height: 1.9;">
+                先定语法元素：系数非零 &rarr; 编 <strong>sig_coeff_flag</strong>，其值 = 1。<br>
+                BaseOffset&nbsp;&nbsp;&nbsp;= <strong>21</strong>　(Luma 且 Size &ge; 8&times;8)<br>
+                LumaCGOffset = <strong>3</strong>　(5&gt;&gt;2=1, 6&gt;&gt;2=1，和=2&gt;0，已跳出 DC 角的 CG)<br>
+                cnt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <strong>0</strong>　(patternSigCtx=0 且 (5&amp;3)+(6&amp;3)=1+2=3&gt;2，走 false 分支)<br>
+                <strong style="color: #1d4ed8;">&rArr; ctxInc = 21 + 3 + 0 = 24</strong>
+              </div>
+            </div>
+
+            <div style="background: #ffffff; border-left: 4px solid #8b5cf6; border-radius: 6px; padding: 14px 18px; margin: 14px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+              <strong style="color: #6d28d9;">② Context_Array &rarr; m_ucState（这格上下文是怎么初始化算出来的）</strong>
+              <div style="font-family: monospace; font-size: 0.9em; color: #1e293b; margin-top: 8px; background: #f8fafc; padding: 10px; border-radius: 4px; line-height: 1.9;">
+                用 ctxInc=24 作下标，从规范初值表取出该上下文的 initValue（设 = <strong>184</strong>），代入 QP=37：<br>
+                slope&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= (184&gt;&gt;4)&times;5 &minus; 45 = 11&times;5 &minus; 45 = <strong>10</strong><br>
+                offset&nbsp;&nbsp;&nbsp;&nbsp;= ((184&amp;15)&lt;&lt;3) &minus; 16 = (8&lt;&lt;3) &minus; 16 = 64 &minus; 16 = <strong>48</strong><br>
+                initState = Clip3(1,126, (10&times;37)&gt;&gt;4 + 48) = Clip3(1,126, 23+48) = <strong>71</strong><br>
+                71 &ge; 64 &rArr; valMPS = <strong>1</strong>，pStateIdx = 71&minus;64 = <strong>7</strong><br>
+                <strong style="color: #6d28d9;">&rArr; m_ucState = (7&lt;&lt;1) | 1 = 15</strong>　(RDOQ 阶段冻结上下文，直接读出这个 15)
+              </div>
+            </div>
+
+            <div style="background: #ffffff; border-left: 4px solid #6366f1; border-radius: 6px; padding: 14px 18px; margin: 14px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+              <strong style="color: #4338ca;">③ 建 Entropy_LUT 并定位（拿 m_ucState 去查哪一格）</strong>
+              <div style="font-family: monospace; font-size: 0.9em; color: #1e293b; margin-top: 8px; background: #f8fafc; padding: 10px; border-radius: 4px; line-height: 1.9;">
+                由 m_ucState=15 拆出 pStateIdx = 15&gt;&gt;1 = <strong>7</strong>。<br>
+                建表时该档概率：p<sub>LPS</sub>(7) = 0.5 &times; 0.9492<sup>7</sup> &approx; <strong>0.347</strong>，p<sub>MPS</sub> &approx; 0.653。<br>
+                LUT[2&times;7]&nbsp;&nbsp;&nbsp;= LUT[14] = round(&minus;log&#8322;(0.653)&times;32768) &approx; <strong>20160</strong>　(编 MPS)<br>
+                LUT[2&times;7+1] = LUT[15] = round(&minus;log&#8322;(0.347)&times;32768) &approx; <strong>50010</strong>　(编 LPS)
+              </div>
+            </div>
+
+            <div style="background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 6px; padding: 14px 18px; margin: 14px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+              <strong style="color: #047857;">④ 查出最终 bit 数（到底花多少）</strong>
+              <div style="font-family: monospace; font-size: 0.9em; color: #064e3b; margin-top: 8px; background: rgba(255,255,255,0.7); padding: 10px; border-radius: 4px; line-height: 1.9;">
+                要编 sig_coeff_flag = 1，valMPS = 1 &rArr; isLPS = flag_val ^ valMPS = 1 ^ 1 = <strong>0</strong>（编的是高概率 MPS）。<br>
+                查表地址 = (pStateIdx&lt;&lt;1) | isLPS = (7&lt;&lt;1) | 0 = <strong>14</strong>。<br>
+                bit_cost = Entropy_LUT[14] &approx; <strong>20160</strong> 定点 = 20160 / 32768 &approx; <strong>0.615 bits</strong>。<br>
+                <strong style="display: block; margin-top: 6px; color: #047857; background: #d1fae5; padding: 5px 8px; border-radius: 4px; border-left: 3px solid #10b981;">最终结论：编码这一个 sig_coeff_flag=1，代价 &approx; 0.615 真实比特（定点值 &approx; 20160）。</strong>
+              </div>
+            </div>
+
+            <p style="margin: 12px 0 0 0; color: #475569; font-size: 0.9em; line-height: 1.6;">
+              这就是<strong>单个</strong>语法元素的完整代价。而一个候选 Level 的总 <code>cabac_bits</code>，正是把它名下所有 flag（sig、gr1、gr2、sign、level_rem）各自走一遍这四步、再把各自的定点比特累加起来得到的。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2>第二章 硬件级 RDOQ 优化策略 (Hardware Optimization)</h2>
+      <div style="background: linear-gradient(135deg, #fef3c7, #fce7f3); padding: 20px; border-radius: 10px; border: 1px solid #fbbf24; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(245,158,11,0.08);">
+        <p style="margin: 0 0 15px 0; color: #78350f; font-size: 1.05em; line-height: 1.8;">
+          <strong style="font-size: 1.15em;">总览：</strong>RDOQ 算法的核心瓶颈在于 CABAC 上下文的<strong>强串行依赖</strong>，导致硬件吞吐率极低。为了在 4K/8K 实时编码中落地，工业界发展出了一整套优化策略。以下是所有关键优化手段的全局视图：
+        </p>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.9em; background: rgba(255,255,255,0.85); border-radius: 6px; overflow: hidden;">
+          <thead>
+            <tr style="background: #1e3a5f; color: white;">
+              <th style="padding: 10px 12px; text-align: left;">优化策略</th>
+              <th style="padding: 10px 12px; text-align: left;">核心思想</th>
+              <th style="padding: 10px 12px; text-align: left;">BD-Rate 代价</th>
+              <th style="padding: 10px 12px; text-align: left;">适用场景</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 12px; font-weight: bold; color: #b91c1c;">弃大保小 Pruning</td>
+              <td style="padding: 8px 12px;">关闭大块 RDOQ，只保留 4×4</td>
+              <td style="padding: 8px 12px;">~0.5%</td>
+              <td style="padding: 8px 12px;">所有 TU 尺寸</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
+              <td style="padding: 8px 12px; font-weight: bold; color: #b91c1c;">Fast/Slow Loop</td>
+              <td style="padding: 8px 12px;">分离重建反馈与 RDOQ 优化路径</td>
+              <td style="padding: 8px 12px;">无 (精确一致)</td>
+              <td style="padding: 8px 12px;">帧内预测环路</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 12px; font-weight: bold; color: #b91c1c;">静态上下文冻结</td>
+              <td style="padding: 8px 12px;">冻结 Context，16 路并行计算</td>
+              <td style="padding: 8px 12px;">微小精度损失</td>
+              <td style="padding: 8px 12px;">4×4 TU</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
+              <td style="padding: 8px 12px; font-weight: bold; color: #b91c1c;">Two-Stage 剪枝</td>
+              <td style="padding: 8px 12px;">16→2 候选淘汰，精英入深度优化</td>
+              <td style="padding: 8px 12px;">极小</td>
+              <td style="padding: 8px 12px;">帧内模式选择</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 12px; font-weight: bold; color: #b91c1c;">亮色度分治</td>
+              <td style="padding: 8px 12px;">Chroma 旁路 RDOQ，仅做 SQ</td>
+              <td style="padding: 8px 12px;">极小</td>
+              <td style="padding: 8px 12px;">色度通道</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 12px; font-weight: bold; color: #047857;">4×4 全并行解耦</td>
+              <td style="padding: 8px 12px;">利用标准后门，解除 patternSigCtx 依赖</td>
+              <td style="padding: 8px 12px;">无 (标准允许)</td>
+              <td style="padding: 8px 12px;">4×4 TU / DC CG</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>2.1 收益分布与取舍策略 (RDOQ Pruning Strategy)</h3>
+      <p>RDOQ 作为压缩率优化工具，收益高度集中于边缘高频系数。工业界在架构层面必须做出极端的收益/吞吐权衡。</p>
+      <div class="critical-alert">
+        <strong>核心架构抉择：弃大保小</strong><br>
+        强制关闭大块（CU16/CU32/CU8）的 RDOQ 以满足时序吞吐限制，死保 <span class="highlight">CU4/TU4 的 RDOQ (wf4)</span>。仅牺牲约 0.5% 的 BD-Rate，换取流水线不会因为长周期状态机陷入瘫痪。
+      </div>
+      
+      <div class="algorithm-steps">
+        <h3>自然语言算法步骤 (Algorithm Steps)</h3>
+        <ol>
+          <li><strong>尺寸侦测:</strong> 控制逻辑从上游截获当前流入 TU/CU 的像素尺寸元数据。</li>
+          <li><strong>大块旁路剔除:</strong> 若检测到 Size > 4x4 (如 8x8、16x16)，直接封锁 RDOQ 硬件入口，迫使数据流入极简的普通标量量化 (SQ) 模块，迅速输出残差。</li>
+          <li><strong>精英放行:</strong> 若检测到 Size == 4x4，则判定为高频收益敏感区，立刻拉高使能信号，将数据与 Context 喂入全量 RDOQ 引擎。</li>
+          <li><strong>高频提纯:</strong> 引擎针对这些 4x4 精英块进行深度 Cost 寻优，最终压榨出极限的 Bincost 并输出纯净的高频残差。</li>
+        </ol>
+      </div>
+
+      <div class="mermaid-wrapper">
+      <div class="mermaid">
+      %%{init: {'theme': 'default', 'themeVariables': {'fontSize': '28px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'bumpX'}}}%%
+      flowchart LR
+        subgraph S1 ["块尺寸处理策略 (RDOQ Pruning)"]
+          direction LR
+          A["CTU 划分树"] --> B{"TU/CU 尺寸判断"}
+          B -->|"Size > 4x4"| C["普通标量量化 (SQ)"]
+          B -->|"Size == 4x4 (wf4)"| D["启动全量 RDOQ 引擎"]
+          C --> E["输出低频/平坦区残差"]
+          D --> F["输出高频优化残差与 Bincost"]
+        end
+        
+        style C fill:#f5f5f5,stroke:#999
+        style D fill:#e1f5fe,stroke:#0288d1
+      </div>
+      </div>
+      <div class="diagram-caption">图 1：基于尺寸的 RDOQ 并发与旁路处理策略 (横向布局)</div>
+      
+      <h3>2.2 帧内环路死锁破解 (Intra Feedback Loop Bypass)</h3>
+      <p>在 wf4 模块中，吞吐目标为 1 pix/clk（即每 16 拍处理一个 4x4 块）。但 RDOQ 会引入至少 8 拍延迟，使得总体重构反馈链路长达 24 拍，远超 16 拍预算。</p>
+      <div class="success">
+        <strong>破局点：前馈重建旁路 (Fast Recon Bypass)</strong><br>
+        为打破帧内相邻块的空间依赖链，<span class="highlight">强制预测重建像素跳过 RDOQ</span>，走 Fast Loop 快速闭环。而 RDOQ 则在独立的 Slow Loop 中计算真实码流。
+      </div>
+
+      <div class="algorithm-steps">
+        <h3>自然语言算法步骤 (Algorithm Steps)</h3>
+        <ol>
+          <li><strong>源头分流:</strong> 像素在完成 DCT 与简单量化 (SQ) 之后，信号兵分两路，分别进入互不干涉的独立赛道。</li>
+          <li><strong>快环抢跑 (Fast Loop):</strong> 第一路数据完全无视后续的 RDOQ，直接冲进反量化与 IDCT。仅仅 12 拍后即刻生成“快速预测重建像素”，并在第 13 拍立刻送给隔壁紧邻的块作为 Intra 空间预测源。死锁瞬间破解。</li>
+          <li><strong>慢环细雕 (Slow Loop):</strong> 第二路数据则带着 SQ 的结果，不慌不忙地进入 RDOQ 核心计算池，耗时 20 拍以上计算出真实的最佳 Level 和 CABAC 码流估算。</li>
+          <li><strong>合流决断:</strong> 最终写入比特流的数据完全采纳 Slow Loop 的高精结果；Fast Loop 的粗糙数据在发挥完“打破流水线气泡”的垫脚石作用后即被丢弃。</li>
+        </ol>
+      </div>
+
+      <div class="mermaid-wrapper" style="border:none; padding:0; background:transparent;">
+        <img src="./redesign_rdoq_bypass.png" style="max-width:100%; height:auto; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.05);" alt="RDOQ Bypass Strategy">
+      </div>
+      <div class="diagram-caption">图 2：帧内反馈环路的双层拆解与 RDOQ 旁路设计 (横向拉伸排版)</div>
+    
+      <h3>2.3 静态上下文预生成 (Static Context Generation)</h3>
+      <p>传统的 Trellis 网格寻优存在深度的系数间因果依赖。在硬件设计中，必须采用“局部独立近似”来替换“全局网格搜索”，为彻底打平流水线铺平道路。</p>
+      
+      <div class="algorithm-steps">
+        <h3>自然语言算法步骤 (Algorithm Steps)</h3>
+        <ol>
+          <li><strong>静态快照剥离:</strong> 抛弃原本动态更新上下文的做法，改为在第 1 拍利用初步 SQ 的结果，一次性暴力预生成 16 个系数的 CABAC Context 静态快照。这彻底切除了系数计算之间的时序依赖链。</li>
+          <li><strong>搜索空间极简压缩:</strong> 舍弃了从 0 一直搜索到最优 Level 的传统庞大循环，硬件判定器强行锁定只有原始 Q 和减弱一档的 Q-1 两个候选目标参与角逐。</li>
+          <li><strong>并行兵团展开:</strong> 点亮 16 个完全独立的物理计算单元 (Compute Unit)。这 16 个单元在同一时钟周期内，各自抱着自己的 Context 快照，疯狂且独立地计算自己所属系数的 Q Cost 和 Q-1 Cost。</li>
+          <li><strong>决出局部霸主:</strong> 16 个单元内部的比较器瞬间各自决出 Cost 最小的优胜 Level。最终通过总线拼合，形成当前 4x4 块的伪全局最优解。</li>
+        </ol>
+      </div>
+
+      <div class="mermaid-wrapper">
+      <div class="mermaid">
+      %%{init: {'theme': 'default', 'themeVariables': {'fontSize': '28px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'bumpX'}}}%%
+      flowchart LR
+        subgraph StaticCtx ["静态上下文剥离 (Static Context)"]
+          direction LR
+          SQ["SQ 初始状态"] --> CABAC["一拍预生成 16 系数 Context"]
+        end
+        subgraph ParallelOpt ["16-Unit 并行寻优 (Parallel Opt)"]
+          direction LR
+          Q["计算 Q Cost"]
+          Q1["计算 Q-1 Cost"]
+          Q --> CMP["比较器并行决断最优 Level"]
+          Q1 --> CMP
+        end
+        CABAC --> Q
+        CABAC --> Q1
+      </div>
+      </div>
+      <div class="diagram-caption">图 3：静态上下文解耦与 16 单元绝对并行计算架构 (全横向展开)</div>
+      
+      <h3>2.4 Two-Stage 候选剪枝 (Two-Stage Fast RDOQ Pruning)</h3>
+      <p>为了满足严苛的 4K/8K 帧率，单纯在底层进行流水线化仍显不足，必须从宏观算法上源头把控，控制 RDOQ 模块的绝对启动频次。</p>
+      <div class="critical-alert">
+        <strong>两级 Candidate 剪枝过滤：</strong><br>
+        前级采用标量量化 (SQ) 与 CABAC 初估，选出 <span class="highlight">Top-2 Best Candidates</span>。仅将这 2 个 Candidate 扔入深度 RDOQ 流水线。牺牲极小 BD-Rate，削减 70% 的面积与时间开销，完美闭环 16 clk 预算！
+      </div>
+
+      <div class="algorithm-steps">
+        <h3>自然语言算法步骤 (Algorithm Steps)</h3>
+        <ol>
+          <li><strong>海选起跑线:</strong> 帧内预测模块筛选出的 16 个潜在最优模式 (Candidates) 汹涌涌入流水线。</li>
+          <li><strong>廉价粗筛阵列:</strong> 对于这 16 个候选者，门禁系统强行禁止它们触碰昂贵的 RDOQ 引擎，而是让它们全部只经过廉价的普通 SQ 量化，并结合简易查表估算出一个极其粗糙的 Cost。</li>
+          <li><strong>末位残酷淘汰:</strong> 硬件冒泡排序树接收这 16 个粗糙 Cost 并进行火速排序，当场无情抹杀排名靠后的 14 个选项，只留下金字塔尖的 Top-2 精英。</li>
+          <li><strong>精英极深造:</strong> 此时，只有这历经千辛万苦幸存的 2 个 Elite Candidates，才被获准正式踏入极其吃面积与功耗的 4-Unit 深度 RDOQ 优化阵列。吞吐量从而被奇迹般地压制在了物理预算极限之内。</li>
+        </ol>
+      </div>
+
+      <div class="mermaid-wrapper" style="border:none; padding:0; background:transparent;">
+        <img src="./redesign_rdoq_stage.png" style="max-width:100%; height:auto; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.05);" alt="RDOQ Stage Architecture">
+      </div>
+      <div class="diagram-caption">图 4：双层两极分化剪枝流水线架构 (横向布局)</div>
+
+      <h3>2.5 亮色度分治策略 (Luma-Chroma RDOQ Bypass)</h3>
+      <p>在实际硬件流水线中，针对亮色度采取非对称的量化策略，以追求极致的性价比与吞吐率。这是一种完全符合标准语法且 100% 保证编解码一致性（Mismatch Free）的经典工程权衡。</p>
+      <div class="success">
+        <strong>核心优化：Luma 开启 RDOQ，Chroma 关闭 RDOQ</strong><br>
+        由于人眼对亮度细节远比色度敏感，RDOQ 带来的压缩收益绝大部分集中在 Luma (亮度) 分量。强迫 <span class="highlight">Chroma (色度) 旁路 RDOQ</span>，仅执行基础的标量量化 (SQ)，可在几乎不影响整体 BD-Rate 的前提下，节省可观的计算周期与面积开销。
+      </div>
+
+      <div class="algorithm-steps">
+        <h3>自然语言算法步骤 (Algorithm Steps)</h3>
+        <ol>
+          <li><strong>分量侦测:</strong> 流水线控制端根据当前 TU 的颜色通道元数据，区分 Luma (Y) 与 Chroma (Cb/Cr)。</li>
+          <li><strong>色度快速旁路 (Chroma Fast-Path):</strong> 若为色度通道，强制封锁 RDOQ 硬件入口使能，数据仅流过廉价的普通标量量化 (SQ) 模块，快速闭环并输出残差。</li>
+          <li><strong>亮度深度精雕 (Luma RDOQ-Path):</strong> 若为亮度通道（且符合 4x4 等精英尺寸），则获准进入完整的 RDOQ 深度优化寻优阵列，以压榨极限的视觉与码流收益。</li>
+        </ol>
+      </div>
+
+      <div class="mermaid-wrapper">
+      <div class="mermaid">
+      %%{init: {'theme': 'default', 'themeVariables': {'fontSize': '28px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 80, 'curve': 'bumpX'}}}%%
+      flowchart LR
+        subgraph ChromaBypass ["亮色度非对称量化架构"]
+          direction LR
+          A["TU/CU 数据入口"] --> B{"通道类型判断"}
+          B -->|"Chroma (Cb/Cr)"| C["普通标量量化 (SQ)"]
+          B -->|"Luma (Y)"| D["启动全量 RDOQ 引擎"]
+          C --> E["极速输出色度残差"]
+          D --> F["深度寻优亮度残差"]
+        end
+        
+        style C fill:#f5f5f5,stroke:#999
+        style D fill:#e1f5fe,stroke:#0288d1
+      </div>
+      </div>
+      <div class="diagram-caption">图 5：基于通道类型的亮色度非对称 RDOQ 旁路策略 (Luma vs Chroma)</div>
+      
+      <h3 style="margin-top: 40px;">2.6 强耦合解绑与 4×4 全并行架构 (Context Decoupling)</h3>
+      <p>既然前文提到 <code>patternSigCtx</code> 造成了极其严重的数据冒险 (Data Hazard) 并导致硬件只能逐点串行扫描，那么是不是整个 RDOQ 都无法并行了呢？并非如此。HEVC/VVC 标准在设计时，专门为硬件架构师留了一个关键的“后门”。</p>
+      
+      <div class="algorithm-steps" style="border-left: 4px solid #16a34a; background: #f0fdf4;">
+        <h3 style="color: #166534; border-bottom: 1px dashed #bbf7d0;">4x4 小块与 DC 区域的“法外狂徒”特权</h3>
+        <p style="color: #14532d; line-height: 1.8;">
+          对于 <strong>4x4 尺寸的 TU</strong>（以及任何大尺寸 TU 中位于最左上角的 DC CG），标准做出了一个重要的妥协：<br>
+          它们的上下文索引 <code>ctxInc</code> <strong>只跟自身坐标 (posX, posY) 有关，彻底无视周边邻居状态！</strong>
+        </p>
+        <div style="background: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #bbf7d0; color: #166534; font-family: monospace; margin-bottom: 15px;">
+          if (Size == 4x4) {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;ctxInc = f(posX, posY); // 完全解耦<br>
+          } else {<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;ctxInc = f(posX, posY, <strong style="color: #dc2626;">patternSigCtx</strong>); // 强数据依赖<br>
+          }
+        </div>
+
+        <div style="background: #fffbeb; border-left: 5px solid #f59e0b; padding: 15px; border-radius: 6px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(245,158,11,0.08);">
+          <strong style="color: #b45309; font-size: 1.05em; display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed #fde68a; padding-bottom: 8px; margin-bottom: 10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            大块场景的折中方案：基于 SQ 结果的 patternSigCtx 预计算
+          </strong>
+          <p style="color: #92400e; font-size: 0.95em; line-height: 1.7; margin-top: 0; margin-bottom: 12px;">
+            上述 4×4 的“完美解耦”是标准赋予的特权，但对于 8×8、8×16 等大尺寸 TU 中的普通 AC CG，<code>patternSigCtx</code> 的强依赖依然存在。硬件架构师常采用以下折中策略来缓解这个矛盾：
+          </p>
+          <div style="background: rgba(255,255,255,0.7); padding: 12px 16px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 12px;">
+            <strong style="color: #92400e;">策略核心：用“先骗后纠”代替“硬等”</strong>
+            <ol style="color: #78350f; font-size: 0.9em; line-height: 1.8; margin: 8px 0 0 0; padding-left: 20px;">
+              <li><strong>预先用 SQ 结果生成“近似”的 patternSigCtx：</strong>在 RDOQ 正式开始之前，硬件先拿着普通标量量化 (SQ) 的结果（而非最终的 RDOQ 结果）来判断每个邻居系数是否为零。因为 SQ 在 RDOQ 之前已经全部完成，所有 16 个系数的 SQ 结果都是现成的，不存在任何前后依赖。</li>
+              <li><strong>基于 SQ 论断一次性预生成 16 个点的 ctxInc：</strong>硬件在第 1 拍就能并行地为当前 CG 内所有 16 个系数计算出各自的 patternSigCtx 和 ctxInc，因为它们全部基于已知的 SQ 状态，而不是还没有计算出来的 RDOQ 状态。</li>
+              <li><strong>精度损失可控：</strong>SQ 结果与 RDOQ 最终结果的差异通常只发生在极少数边缘系数上（即那些被 RDOQ 从 Level=1 强制清零的系数），因此预算出的 patternSigCtx 与理想值的偏差极小，对最终压缩率的影响几乎可以忽略不计。</li>
+            </ol>
+          </div>
+          <div style="background: #fef3c7; border-left: 3px solid #d97706; padding: 8px 12px; border-radius: 4px;">
+            <strong style="color: #92400e; font-size: 0.9em;">硬件收益：</strong>
+            <span style="color: #78350f; font-size: 0.88em;">这种“SQ 代替 RDOQ”的预计算策略，正是前文 2.3 节“静态上下文预生成”的核心原理。它把原本要“等前一个系数 RDOQ 跑完”才能开始的串行链，变成了“第 1 拍统一预算，第 2 拍并行展开”的两步流水线。代价仅仅是微小的精度损失。</span>
+          </div>
+        </div>
+        
+        <h3 style="color: #166534; border-bottom: 1px dashed #bbf7d0;">硬件并行化收益 (Hardware Parallelism)</h3>
+        <p style="color: #14532d; line-height: 1.8;">
+          正是因为这种空间依赖上的解耦，在处理 4x4 TU 时，那堵限制并行的“数据冒险墙”就不复存在了。<br>
+          结合前文提到的 <strong>冻结模型 (Frozen Context)</strong> 策略（即在 RDOQ 计算期间不真实更新 SRAM，只读取初始概率），硬件可以做到：
+        </p>
+        <ul style="color: #14532d; line-height: 1.8; margin-bottom: 0;">
+          <li>将一个 4x4 TU 内的 16 个系数在<strong>同一个时钟周期内</strong>并行展开。</li>
+          <li>16 个计算单元同时查表 <code>Entropy_LUT</code>，瞬间输出 16 个独立的代价值。</li>
+          <li>通过一个并行的比较树网络，一周期内直接完成这 16 个系数的最优 Level 判决！</li>
+        </ul>
+        <div class="critical-alert" style="margin-top: 15px; background: #e0e7ff; border-left-color: #4f46e5;">
+          <strong style="color: #3730a3;">架构启示：</strong>在设计高性能 VPU 时，对于最耗时的 16x16 / 32x32 宏块，只能采用折中的“Two-Stage”剪枝或单点超频；但对于海量的 4x4 小块，<strong>必须</strong>利用这个解耦特性设计专用的全并行处理路径 (Fast Track)，这是拉升整体芯片吞吐率 (Throughput) 的杀手锏。
+        </div>
+      </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tocList = document.getElementById('toc-list');
+    const topNav = document.getElementById('top-nav');
+    const headers = document.querySelectorAll('.container h2, .container h3:not(.algorithm-steps h3)');
+    const mainContent = document.getElementById('main-content');
+    
+    headers.forEach((header, index) => {
+      const id = 'section-' + index;
+      header.id = id;
+      
+      const li = document.createElement('li');
+      li.className = header.tagName === 'H2' ? 'level-2' : 'level-3';
+      
+      const a = document.createElement('a');
+      a.href = '#' + id;
+      a.textContent = header.textContent;
+      
+      a.addEventListener('click', (e) => {
+          e.preventDefault();
+          const target = document.getElementById(id);
+          mainContent.scrollTo({
+              top: target.offsetTop - 40,
+              behavior: 'smooth'
+          });
+      });
+      
+      li.appendChild(a);
+      tocList.appendChild(li);
+
+      if (header.tagName === 'H2' && topNav) {
+          const topA = document.createElement('a');
+          topA.href = '#' + id;
+          topA.className = 'top-nav-link';
+          topA.textContent = header.textContent;
+          topA.addEventListener('click', (e) => {
+              e.preventDefault();
+              const target = document.getElementById(id);
+              mainContent.scrollTo({
+                  top: target.offsetTop - 40,
+                  behavior: 'smooth'
+              });
+          });
+          topNav.appendChild(topA);
+      }
+    });
+
+    const links = document.querySelectorAll('#toc-list a');
+    
+    mainContent.addEventListener('scroll', () => {
+      let currentId = '';
+      let currentH2Id = '';
+      headers.forEach(header => {
+        if (mainContent.scrollTop >= header.offsetTop - 100) {
+          currentId = header.id;
+          if (header.tagName === 'H2') {
+              currentH2Id = header.id;
+          }
+        }
+      });
+      
+      if (currentId) {
+          document.querySelectorAll('.sidebar a').forEach(link => {
+              link.classList.remove('active');
+              if (link.getAttribute('href') === '#' + currentId) {
+                  link.classList.add('active');
+              }
+          });
+      }
+
+      if (currentH2Id) {
+          document.querySelectorAll('.top-nav-link').forEach(link => {
+              link.classList.remove('active');
+              if (link.getAttribute('href') === '#' + currentH2Id) {
+                  link.classList.add('active');
+              }
+          });
+      }
+    });
+
+    if(tocList.firstChild) {
+        tocList.firstChild.querySelector('a').classList.add('active');
+    }
+    if(topNav && topNav.firstChild) {
+        topNav.firstChild.classList.add('active');
+    }
+});
+</script>
+</body>
+</html>

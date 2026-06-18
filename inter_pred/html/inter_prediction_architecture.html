@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoEncoder_Project 帧间预测架构总结</title>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+    <style>
+        :root {
+            --primary: #0288d1;
+            --secondary: #0277bd;
+            --accent: #ff6f00;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; background: var(--bg); }
+        .sidebar { width: 300px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; padding: 30px; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .sidebar h2.toc-title { font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1px; margin-top: 0; }
+        .sidebar ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar li { margin-bottom: 8px; }
+        .sidebar a { color: #475569; text-decoration: none; display: block; padding: 8px 12px; border-radius: 6px; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover { background: #f1f5f9; color: var(--primary); }
+        .sidebar a.active { background: #eff6ff; color: var(--primary); font-weight: 600; border-left: 3px solid var(--primary); }
+        .sidebar li.level-2 a { padding-left: 12px; }
+        .sidebar li.level-3 a { padding-left: 30px; font-size: 13px; color: #64748b; }
+        
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--card-bg); padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+
+        h1 { color: var(--primary); text-align: center; border-bottom: 3px solid var(--secondary); padding-bottom: 15px; margin-bottom: 40px; }
+        h2 { color: var(--secondary); margin-top: 40px; border-left: 5px solid var(--secondary); padding-left: 15px; }
+        h3 { color: #555; }
+        
+        .highlight { background-color: #e3f2fd; border-left: 4px solid var(--secondary); padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .success { background-color: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .critical-alert { background-color: #fef2f2; border-left: 6px solid #ef4444; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+        .critical-keyword { background: #fecaca; padding: 2px 6px; border-radius: 4px; color: #991b1b; font-weight: 700; }
+        
+        .mermaid { display: flex; justify-content: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
+        .mermaid svg { width: 100% !important; height: auto !important; max-width: none !important; }
+        .diagram-caption { text-align: center; color: #7f8c8d; font-size: 0.9em; margin-top: -15px; margin-bottom: 30px; font-style: italic; }
+        
+        .top-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0; }
+        .top-nav-link { background: #f8fafc; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .top-nav-link:hover { background: #e0f2fe; }
+        .top-nav-link.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background-color: #f1f5f9; color: #334155; }
+        tr:hover { background-color: #f8fafc; }
+
+        .algo-steps { margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0288d1; border-radius: 4px; color: #333; font-size: 0.95em; }
+        .algo-steps strong.title { color: #0288d1; display: block; margin-bottom: 10px; }
+        .algo-steps ol { margin: 0; padding-left: 20px; }
+        .algo-steps li { margin-bottom: 5px; }
+    
+        /* Animation CSS for MVP List Generation */
+        .mvp-animation-container { display: flex; gap: 40px; background: #fafafa; padding: 30px; border: 1px solid #eee; border-radius: 8px; justify-content: center; align-items: center; margin: 30px 0; }
+        .mvp-grid { display: grid; grid-template-columns: repeat(4, 50px); grid-template-rows: repeat(4, 50px); gap: 2px; background: #e2e8f0; padding: 2px; position: relative; }
+        .mvp-cell { background: #fff; display: flex; justify-content: center; align-items: center; font-size: 10px; color: #94a3b8; }
+        .mvp-cell.cur { background: #ffcdd2; border: 2px dashed #ef4444; color: #b91c1c; font-weight: bold; }
+        
+        .mvp-cell.a0, .mvp-cell.a1, .mvp-cell.b0, .mvp-cell.b1, .mvp-cell.b2 { position: relative; overflow: hidden; }
+        .mvp-cell.a0::after { content: ''; position: absolute; inset: 0; background: #4ade80; opacity: 0; animation: flashA0 10s infinite; }
+        .mvp-cell.a1::after { content: ''; position: absolute; inset: 0; background: #4ade80; opacity: 0; animation: flashA1 10s infinite; }
+        .mvp-cell.b0::after { content: ''; position: absolute; inset: 0; background: #4ade80; opacity: 0; animation: flashB0 10s infinite; }
+        .mvp-cell.b1::after { content: ''; position: absolute; inset: 0; background: #4ade80; opacity: 0; animation: flashB1 10s infinite; }
+        .mvp-cell.b2::after { content: ''; position: absolute; inset: 0; background: #4ade80; opacity: 0; animation: flashB2 10s infinite; }
+
+        @keyframes flashA0 { 0%, 5% {opacity: 0;} 10%, 100% {opacity: 0.6;} }
+        @keyframes flashA1 { 0%, 25% {opacity: 0;} 30%, 100% {opacity: 0.6;} }
+        @keyframes flashB0 { 0%, 45% {opacity: 0;} 50%, 100% {opacity: 0.6;} }
+        @keyframes flashB1 { 0%, 65% {opacity: 0;} 70%, 100% {opacity: 0.6;} }
+        @keyframes flashB2 { 0%, 85% {opacity: 0;} 90%, 100% {opacity: 0.6;} }
+
+        .mvp-list-box { width: 250px; background: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .mvp-list-title { font-weight: bold; color: #0f172a; margin-bottom: 10px; font-size: 14px; text-align: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
+        .mvp-item { padding: 8px; margin-bottom: 5px; border-radius: 4px; background: #f8fafc; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #334155; opacity: 0; transform: translateX(-10px); }
+        
+        .mvp-item:nth-child(2) { animation: slideInA0 10s infinite; }
+        .mvp-item:nth-child(3) { animation: slideInA1 10s infinite; }
+        .mvp-item:nth-child(4) { animation: slideInB0 10s infinite; }
+        .mvp-item:nth-child(5) { animation: slideInB1 10s infinite; }
+        .mvp-item:nth-child(6) { animation: slideInB2 10s infinite; }
+
+        @keyframes slideInA0 { 0%, 8% {opacity: 0; transform: translateX(-10px);} 12%, 100% {opacity: 1; transform: translateX(0); background: #dcfce7; border-color: #4ade80;} }
+        @keyframes slideInA1 { 0%, 28% {opacity: 0; transform: translateX(-10px);} 32%, 100% {opacity: 1; transform: translateX(0); background: #dcfce7; border-color: #4ade80;} }
+        @keyframes slideInB0 { 0%, 48% {opacity: 0; transform: translateX(-10px);} 52%, 100% {opacity: 1; transform: translateX(0); background: #dcfce7; border-color: #4ade80;} }
+        @keyframes slideInB1 { 0%, 68% {opacity: 0; transform: translateX(-10px);} 72%, 100% {opacity: 1; transform: translateX(0); background: #fef2f2; border-color: #fca5a5; text-decoration: line-through; color: #ef4444;} }
+        @keyframes slideInB2 { 0%, 88% {opacity: 0; transform: translateX(-10px);} 92%, 100% {opacity: 1; transform: translateX(0); background: #dcfce7; border-color: #4ade80;} }
+
+        /* Datapath Arrow CSS */
+        .data-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; }
+        .arrow-line { width: 100%; height: 4px; background: #3b82f6; position: relative; }
+        .arrow-line::after { content: ''; position: absolute; right: -5px; top: -6px; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid #3b82f6; }
+    
+    
+        /* Gantt Chart CSS */
+        .gantt-container { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; overflow-x: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .gantt-title { font-size: 14px; font-weight: bold; color: #334155; margin-bottom: 15px; text-align: center; }
+        .gantt-row { display: flex; align-items: center; margin-bottom: 10px; }
+        .gantt-label { width: 80px; font-size: 12px; font-weight: bold; color: #475569; }
+        .gantt-track { flex-grow: 1; display: flex; background: #f1f5f9; border-radius: 4px; height: 30px; position: relative; }
+        .gantt-block { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 11px; font-weight: bold; color: white; border-right: 1px solid rgba(255,255,255,0.2); transition: all 0.3s; }
+        .gantt-block:last-child { border-right: none; }
+        
+        .gb-memd { background: #3b82f6; width: 20%; border-radius: 4px 0 0 4px; }
+        .gb-meqn { background: #8b5cf6; width: 20%; }
+        .gb-mc { background: #10b981; width: 15%; }
+        .gb-rdo { background: #f59e0b; width: 45%; border-radius: 0 4px 4px 0; }
+        .gb-wait { background: #e2e8f0; border: 1px dashed #cbd5e1; color: #94a3b8; }
+        
+        .dependency-arrow { position: absolute; height: 20px; border-left: 2px dashed #ef4444; border-bottom: 2px dashed #ef4444; width: 20px; }
+        .dependency-arrow::after { content: ''; position: absolute; right: -5px; bottom: -6px; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #ef4444; }
+        
+        pre.c-code { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 13px; overflow-x: auto; margin: 15px 0; border-left: 4px solid #ef4444;}
+        .c-keyword { color: #569cd6; }
+        .c-comment { color: #6a9955; }
+        .c-variable { color: #9cdcfe; }
+        .c-function { color: #dcdcaa; }
+        .c-enum { color: #4fc1ff; }
+    
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="toc-title">目录导航</h2>
+    <ul id="toc-list"></ul>
+</div>
+
+<div class="main-content" id="main-content">
+<div class="container">
+    <div class="top-nav" id="top-nav"></div>
+    
+    <h1>VideoEncoder_Project 帧间预测与架构优化总结<br><span style="font-size:0.6em; color:#7f8c8d;">Inter Prediction Architecture & Hardware Bottlenecks</span></h1>
+
+    <h2>1. 帧间预测高阶架构总览</h2>
+    <p>VideoEncoder_Project 包含对多种标准（HEVC, AV1, H264）的 Inter Prediction（帧间预测）实现。本文档以 HEVC 帧间预测 (<code>hevc/inter_mode.c</code>) 作为基础模型，分析其运动估计（Motion Estimation, ME）与运动补偿（Motion Compensation, MC）的核心架构设计。</p>
+
+    <div style="text-align: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <svg width="100%" height="auto"
+ viewBox="0.00 0.00 1641.50 167.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 163)">
+<polygon fill="white" stroke="none" points="-4,4 -4,-163 1637.5,-163 1637.5,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_InputStage</title>
+<polygon fill="none" stroke="#999999" stroke-dasharray="5,2" points="8,-8 8,-151 163,-151 163,-8 8,-8"/>
+<text text-anchor="middle" x="85.5" y="-128" font-family="Helvetica, Arial, sans-serif" font-size="20.00">前端输入</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_ME</title>
+<path fill="#ffffe0" stroke="#fbc02d" d="M196,-38C196,-38 787.75,-38 787.75,-38 793.75,-38 799.75,-44 799.75,-50 799.75,-50 799.75,-115 799.75,-115 799.75,-121 793.75,-127 787.75,-127 787.75,-127 196,-127 196,-127 190,-127 184,-121 184,-115 184,-115 184,-50 184,-50 184,-44 190,-38 196,-38"/>
+<text text-anchor="middle" x="491.88" y="-104" font-family="Helvetica, Arial, sans-serif" font-size="20.00">运动估计 (ME)</text>
+</g>
+<g id="clust3" class="cluster">
+<title>cluster_MC</title>
+<path fill="#e0f7fa" stroke="#00acc1" d="M892.5,-38C892.5,-38 1187.5,-38 1187.5,-38 1193.5,-38 1199.5,-44 1199.5,-50 1199.5,-50 1199.5,-115 1199.5,-115 1199.5,-121 1193.5,-127 1187.5,-127 1187.5,-127 892.5,-127 892.5,-127 886.5,-127 880.5,-121 880.5,-115 880.5,-115 880.5,-50 880.5,-50 880.5,-44 886.5,-38 892.5,-38"/>
+<text text-anchor="middle" x="1040" y="-104" font-family="Helvetica, Arial, sans-serif" font-size="20.00">运动补偿 (MC)</text>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_RDO</title>
+<path fill="#fce4ec" stroke="#c2185b" d="M1313.25,-38C1313.25,-38 1613.5,-38 1613.5,-38 1619.5,-38 1625.5,-44 1625.5,-50 1625.5,-50 1625.5,-115 1625.5,-115 1625.5,-121 1619.5,-127 1613.5,-127 1613.5,-127 1313.25,-127 1313.25,-127 1307.25,-127 1301.25,-121 1301.25,-115 1301.25,-115 1301.25,-50 1301.25,-50 1301.25,-44 1307.25,-38 1313.25,-38"/>
+<text text-anchor="middle" x="1463.38" y="-104" font-family="Helvetica, Arial, sans-serif" font-size="20.00">率失真优化 (RDO)</text>
+</g>
+<!-- OrigPix -->
+<g id="node1" class="node">
+<title>OrigPix</title>
+<polygon fill="#f3e5f5" stroke="black" points="155,-106 16,-106 16,-70 155,-70 155,-106"/>
+<text text-anchor="middle" x="85.5" y="-84.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">原始像素 (Orig)</text>
+</g>
+<!-- MVP -->
+<g id="node3" class="node">
+<title>MVP</title>
+<polygon fill="#ffffff" stroke="black" points="370.75,-82 192,-82 192,-46 370.75,-46 370.75,-82"/>
+<text text-anchor="middle" x="281.38" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">空域/时域 MVP 获取</text>
+</g>
+<!-- OrigPix&#45;&gt;MVP -->
+<g id="edge5" class="edge">
+<title>OrigPix&#45;&gt;MVP</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M155.4,-79.47C163.57,-78.46 172.04,-77.41 180.53,-76.36"/>
+<polygon fill="black" stroke="black" points="180.69,-79.87 190.19,-75.16 179.83,-72.92 180.69,-79.87"/>
+</g>
+<!-- RefPix -->
+<g id="node2" class="node">
+<title>RefPix</title>
+<polygon fill="#f3e5f5" stroke="black" points="143,-52 28,-52 28,-16 143,-16 143,-52"/>
+<text text-anchor="middle" x="85.5" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">参考帧 (Ref)</text>
+</g>
+<!-- RefPix&#45;&gt;MVP -->
+<g id="edge6" class="edge">
+<title>RefPix&#45;&gt;MVP</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M143.36,-42.8C155.11,-44.62 167.82,-46.58 180.59,-48.56"/>
+<polygon fill="black" stroke="black" points="179.9,-51.99 190.31,-50.06 180.97,-45.08 179.9,-51.99"/>
+</g>
+<!-- Coarse -->
+<g id="node4" class="node">
+<title>Coarse</title>
+<polygon fill="#ffffff" stroke="black" points="602.25,-82 407.75,-82 407.75,-46 602.25,-46 602.25,-82"/>
+<text text-anchor="middle" x="505" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">多级粗搜 (Coarse ME)</text>
+</g>
+<!-- MVP&#45;&gt;Coarse -->
+<g id="edge1" class="edge">
+<title>MVP&#45;&gt;Coarse</title>
+<path fill="none" stroke="black" d="M371.24,-64C379.44,-64 387.8,-64 396.14,-64"/>
+<polygon fill="black" stroke="black" points="395.97,-67.5 405.97,-64 395.97,-60.5 395.97,-67.5"/>
+</g>
+<!-- Refine -->
+<g id="node5" class="node">
+<title>Refine</title>
+<polygon fill="#ffffff" stroke="black" points="791.75,-82 639.25,-82 639.25,-46 791.75,-46 791.75,-82"/>
+<text text-anchor="middle" x="715.5" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">精搜 (Refine ME)</text>
+</g>
+<!-- Coarse&#45;&gt;Refine -->
+<g id="edge2" class="edge">
+<title>Coarse&#45;&gt;Refine</title>
+<path fill="none" stroke="black" d="M602.62,-64C610.87,-64 619.19,-64 627.37,-64"/>
+<polygon fill="black" stroke="black" points="627.29,-67.5 637.29,-64 627.29,-60.5 627.29,-67.5"/>
+</g>
+<!-- Interp -->
+<g id="node6" class="node">
+<title>Interp</title>
+<polygon fill="#ffffff" stroke="black" points="1030.5,-82 888.5,-82 888.5,-46 1030.5,-46 1030.5,-82"/>
+<text text-anchor="middle" x="959.5" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">亚像素插值滤波</text>
+</g>
+<!-- Refine&#45;&gt;Interp -->
+<g id="edge7" class="edge">
+<title>Refine&#45;&gt;Interp</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M799.75,-64C824.58,-64 851.77,-64 876.52,-64"/>
+<polygon fill="black" stroke="black" points="868.99,-67.5 878.99,-64 868.99,-60.5 868.99,-67.5"/>
+<text text-anchor="middle" x="840.12" y="-65.3" font-family="Helvetica, Arial, sans-serif" font-size="16.00" fill="#0288d1">Best MV</text>
+</g>
+<!-- ReconGen -->
+<g id="node7" class="node">
+<title>ReconGen</title>
+<polygon fill="#ffffff" stroke="black" points="1191.5,-82 1067.5,-82 1067.5,-46 1191.5,-46 1191.5,-82"/>
+<text text-anchor="middle" x="1129.5" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">重构像素生成</text>
+</g>
+<!-- Interp&#45;&gt;ReconGen -->
+<g id="edge3" class="edge">
+<title>Interp&#45;&gt;ReconGen</title>
+<path fill="none" stroke="black" d="M1030.77,-64C1038.96,-64 1047.33,-64 1055.56,-64"/>
+<polygon fill="black" stroke="black" points="1055.54,-67.5 1065.54,-64 1055.54,-60.5 1055.54,-67.5"/>
+</g>
+<!-- MergeSkip -->
+<g id="node8" class="node">
+<title>MergeSkip</title>
+<polygon fill="#ffffff" stroke="black" points="1456.5,-82 1309.25,-82 1309.25,-46 1456.5,-46 1456.5,-82"/>
+<text text-anchor="middle" x="1382.88" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">Merge/Skip 决策</text>
+</g>
+<!-- ReconGen&#45;&gt;MergeSkip -->
+<g id="edge8" class="edge">
+<title>ReconGen&#45;&gt;MergeSkip</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1199.5,-64C1229.77,-64 1265.6,-64 1297.45,-64"/>
+<polygon fill="black" stroke="black" points="1289.74,-67.5 1299.74,-64 1289.74,-60.5 1289.74,-67.5"/>
+<text text-anchor="middle" x="1250.38" y="-65.3" font-family="Helvetica, Arial, sans-serif" font-size="16.00" fill="#0288d1">Pred Pixels</text>
+</g>
+<!-- ModeSel -->
+<g id="node9" class="node">
+<title>ModeSel</title>
+<polygon fill="#ffffff" stroke="black" points="1617.5,-82 1493.5,-82 1493.5,-46 1617.5,-46 1617.5,-82"/>
+<text text-anchor="middle" x="1555.5" y="-60.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">最终模式选择</text>
+</g>
+<!-- MergeSkip&#45;&gt;ModeSel -->
+<g id="edge4" class="edge">
+<title>MergeSkip&#45;&gt;ModeSel</title>
+<path fill="none" stroke="black" d="M1456.73,-64C1465.07,-64 1473.58,-64 1481.92,-64"/>
+<polygon fill="black" stroke="black" points="1481.65,-67.5 1491.65,-64 1481.65,-60.5 1481.65,-67.5"/>
+</g>
+</g>
+</svg>
+    </div>
+    <div class="diagram-caption">图 1：帧间预测完整数据流——从输入到最终模式选择的全链路架构</div>
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>2. 运动矢量精度与 AMVR 机制</h2>
+
+    <div class="highlight">
+        <strong>💡 什么是 AMVR (Adaptive Motion Vector Resolution)？</strong><br>
+        传统编码器对所有 MV 统一使用 1/4 像素精度。AMVR 允许编码器根据内容自适应地选择 4 种精度级别：4-Pel（整像素×4）、整像素、半像素、1/4 像素。对于运动平缓的区域，使用低精度 MV 可以大幅节省比特开销。
+    </div>
+
+    <div class="mermaid">
+    flowchart LR
+      subgraph AMVR ["AMVR 精度选择流水线"]
+        direction LR
+        Input["原始 MV (1/16 内部精度)"]
+        Sel{"CU.imv 精度选择"}
+        P0["imv=0: 1/4 Pel"]
+        P1["imv=1: 整像素"]
+        P2["imv=2: 4-Pel"]
+        P3["imv=3: 半像素"]
+        Round["roundToPrecision()"]
+        Output["输出: 对齐后 MV"]
+        Input --> Sel
+        Sel --> P0 & P1 & P2 & P3
+        P0 & P1 & P2 & P3 --> Round --> Output
+      end
+
+      style Sel fill:#fff3e0,stroke:#f57c00
+      style Round fill:#e1f5fe,stroke:#0288d1
+    </div>
+    <div class="diagram-caption">图 2：AMVR 四级精度选择与 MV 对齐流水线</div>
+
+    <div class="algo-steps">
+        <strong class="title">📝 中文算法推导步骤 (AMVR 精度转换)</strong>
+        <ol>
+            <li><strong>精度映射：</strong>根据 CU 级别的 <code>imv</code> 标志（0~3），从 <code>m_amvrPrecision[]</code> 表中查出目标精度（1/4、整像素、4-Pel、半像素）。</li>
+            <li><strong>向下对齐：</strong>调用 <code>changePrecision(src → dst)</code> 将 MV 右移到目标精度，此过程中丢弃低位。</li>
+            <li><strong>向上还原：</strong>再调用 <code>changePrecision(dst → src)</code> 左移回内部表示精度，完成"Round-trip"对齐。</li>
+            <li><strong>核心效果：</strong>经过这组"先降后升"操作，MV 的低位被强制清零，等效于量化到目标精度网格上。</li>
+        </ol>
+    </div>
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>3. 多级搜索范围配置 (Search Ranges)</h2>
+    <p>硬件 ME 模块对 P 帧与 B 帧的搜索范围做了精细划分，采用多级 (Stage) 搜索策略，逐级收敛搜索窗口，在保证编码质量的前提下极致节省搜索带宽。</p>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Stage</th>
+          <th>X 范围 (±pixels)</th>
+          <th>Y 范围 (±pixels)</th>
+          <th>降采样 (Shift)</th>
+          <th>Step (步长)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>0 (Coarse)</td><td>128</td><td>64</td><td>3</td><td>8</td></tr>
+        <tr><td>1 (Medium)</td><td>128</td><td>32 (LIMIT)</td><td>2</td><td>4</td></tr>
+        <tr><td>2 (Fine)</td><td>8</td><td>4</td><td>1</td><td>2</td></tr>
+        <tr><td>3 (Refine)</td><td>4 (or 2)</td><td>2 (or 1)</td><td>0</td><td>1</td></tr>
+        <tr><td>4 (SubPel)</td><td>1</td><td>1</td><td>0</td><td>1</td></tr>
+      </tbody>
+    </table>
+
+    <div class="mermaid">
+    flowchart LR
+      S0["Stage 0<br>128×64<br>Step=8"] --> S1["Stage 1<br>128×32<br>Step=4"]
+      S1 --> S2["Stage 2<br>8×4<br>Step=2"]
+      S2 --> S3["Stage 3<br>4×2<br>Step=1"]
+      S3 --> S4["Stage 4<br>SubPel<br>1×1"]
+      
+      style S0 fill:#fee2e2,stroke:#ef4444
+      style S1 fill:#ffedd5,stroke:#f97316
+      style S2 fill:#fef9c3,stroke:#eab308
+      style S3 fill:#dcfce7,stroke:#22c55e
+      style S4 fill:#e0f2fe,stroke:#0288d1
+    </div>
+    <div class="diagram-caption">图 3：ME 多级搜索逐级收敛示意——从粗到精的金字塔搜索策略</div>
+
+    <div class="critical-alert">
+      <strong style="color: #991b1b; display: block; margin-bottom: 8px;">🔥 架构优化突破：纵向搜索范围裁剪</strong>
+      在实际数据跑测中，算法团队发现：针对 B 帧与 P 帧，<span class="critical-keyword">将垂直搜索范围从 ±64 裁剪至 ±32</span>，可以在几乎不损失压缩率的前提下（仅某特定序列如 <code>SlideEditing_1280x720_30.yuv</code> 有显著影响，平均仅 0.6% BDR-Y 损失），大幅削减片上 SRAM 缓存和带宽。这是一种典型的以边界情况 (Corner Case) BDR 换取硬件极致面积的设计取舍。
+    </div>
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>4. 空域与时域 MVP 获取机制</h2>
+
+    <h3>4.1 空域 MVP (Spatial MVP)</h3>
+    <p>在 <code>xGetNeighborAvailable</code> 函数中，对当前预测单元 (PU) 的周边块 (A0, A1, B0, B1, B2 等) 进行可用性判定和 MV 提取。</p>
+
+    <div style="text-align: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <svg width="100%" height="auto"
+ viewBox="0.00 0.00 1348.00 221.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 217)">
+<polygon fill="white" stroke="none" points="-4,4 -4,-217 1344,-217 1344,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_Spatial</title>
+<path fill="#f3e5f5" stroke="#ab47bc" d="M20,-8C20,-8 359,-8 359,-8 365,-8 371,-14 371,-20 371,-20 371,-193 371,-193 371,-199 365,-205 359,-205 359,-205 20,-205 20,-205 14,-205 8,-199 8,-193 8,-193 8,-20 8,-20 8,-14 14,-8 20,-8"/>
+<text text-anchor="middle" x="189.5" y="-182" font-family="Helvetica, Arial, sans-serif" font-size="20.00">空域 MVP 取样位置</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_Check</title>
+<path fill="#e1f5fe" stroke="#0288d1" d="M466,-71C466,-71 1107.75,-71 1107.75,-71 1113.75,-71 1119.75,-77 1119.75,-83 1119.75,-83 1119.75,-148 1119.75,-148 1119.75,-154 1113.75,-160 1107.75,-160 1107.75,-160 466,-160 466,-160 460,-160 454,-154 454,-148 454,-148 454,-83 454,-83 454,-77 460,-71 466,-71"/>
+<text text-anchor="middle" x="786.88" y="-137" font-family="Helvetica, Arial, sans-serif" font-size="20.00">可用性校验</text>
+</g>
+<!-- B2 -->
+<g id="node1" class="node">
+<title>B2</title>
+<polygon fill="#ffffff" stroke="black" points="107,-99 16,-99 16,-63 107,-63 107,-99"/>
+<text text-anchor="middle" x="61.5" y="-77.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">B2 (左上)</text>
+</g>
+<!-- B1 -->
+<g id="node2" class="node">
+<title>B1</title>
+<polygon fill="#ffffff" stroke="black" points="235,-126 144,-126 144,-90 235,-90 235,-126"/>
+<text text-anchor="middle" x="189.5" y="-104.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">B1 (正上)</text>
+</g>
+<!-- B2&#45;&gt;B1 -->
+<g id="edge1" class="edge">
+<title>B2&#45;&gt;B1</title>
+<path fill="none" stroke="black" d="M107.28,-90.6C115.54,-92.37 124.26,-94.23 132.8,-96.06"/>
+<polygon fill="black" stroke="black" points="131.88,-99.45 142.39,-98.12 133.34,-92.6 131.88,-99.45"/>
+</g>
+<!-- A1 -->
+<g id="node4" class="node">
+<title>A1</title>
+<polygon fill="#ffffff" stroke="black" points="235,-72 144,-72 144,-36 235,-36 235,-72"/>
+<text text-anchor="middle" x="189.5" y="-50.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">A1 (正左)</text>
+</g>
+<!-- B2&#45;&gt;A1 -->
+<g id="edge3" class="edge">
+<title>B2&#45;&gt;A1</title>
+<path fill="none" stroke="black" d="M107.28,-71.4C115.54,-69.63 124.26,-67.77 132.8,-65.94"/>
+<polygon fill="black" stroke="black" points="133.34,-69.4 142.39,-63.88 131.88,-62.55 133.34,-69.4"/>
+</g>
+<!-- B0 -->
+<g id="node3" class="node">
+<title>B0</title>
+<polygon fill="#ffffff" stroke="black" points="363,-160 272,-160 272,-124 363,-124 363,-160"/>
+<text text-anchor="middle" x="317.5" y="-138.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">B0 (右上)</text>
+</g>
+<!-- B1&#45;&gt;B0 -->
+<g id="edge2" class="edge">
+<title>B1&#45;&gt;B0</title>
+<path fill="none" stroke="black" d="M235.28,-120.08C243.54,-122.31 252.26,-124.67 260.8,-126.97"/>
+<polygon fill="black" stroke="black" points="259.84,-130.34 270.41,-129.56 261.66,-123.58 259.84,-130.34"/>
+</g>
+<!-- CUR -->
+<g id="node6" class="node">
+<title>CUR</title>
+<polygon fill="#ffcdd2" stroke="#d32f2f" stroke-width="2" stroke-dasharray="5,2" points="358.88,-106 276.12,-106 276.12,-70 358.88,-70 358.88,-106"/>
+<text text-anchor="middle" x="317.5" y="-84.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">当前 PU</text>
+</g>
+<!-- B1&#45;&gt;CUR -->
+<g id="edge6" class="edge">
+<title>B1&#45;&gt;CUR</title>
+<path fill="none" stroke="black" d="M235.28,-100.89C244.63,-99.41 254.57,-97.83 264.17,-96.31"/>
+<polygon fill="black" stroke="black" points="264.41,-99.81 273.74,-94.79 263.31,-92.9 264.41,-99.81"/>
+</g>
+<!-- C1 -->
+<g id="node7" class="node">
+<title>C1</title>
+<polygon fill="#ffffff" stroke="black" points="595,-115 462,-115 462,-79 595,-79 595,-115"/>
+<text text-anchor="middle" x="528.5" y="-93.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">Z&#45;Scan 可用性</text>
+</g>
+<!-- B0&#45;&gt;C1 -->
+<g id="edge11" class="edge">
+<title>B0&#45;&gt;C1</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M371,-130.7C395.09,-125.51 424.13,-119.26 450.62,-113.55"/>
+<polygon fill="black" stroke="black" points="444.68,-119.78 452.6,-112.74 442.02,-113.3 444.68,-119.78"/>
+</g>
+<!-- A0 -->
+<g id="node5" class="node">
+<title>A0</title>
+<polygon fill="#ffffff" stroke="black" points="363,-52 272,-52 272,-16 363,-16 363,-52"/>
+<text text-anchor="middle" x="317.5" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">A0 (左下)</text>
+</g>
+<!-- A1&#45;&gt;A0 -->
+<g id="edge4" class="edge">
+<title>A1&#45;&gt;A0</title>
+<path fill="none" stroke="black" d="M235.28,-46.89C243.45,-45.6 252.06,-44.23 260.51,-42.89"/>
+<polygon fill="black" stroke="black" points="261.04,-46.35 270.37,-41.32 259.95,-39.43 261.04,-46.35"/>
+</g>
+<!-- A1&#45;&gt;CUR -->
+<g id="edge5" class="edge">
+<title>A1&#45;&gt;CUR</title>
+<path fill="none" stroke="black" d="M235.28,-66.08C244.63,-68.61 254.57,-71.29 264.17,-73.88"/>
+<polygon fill="black" stroke="black" points="263.2,-77.24 273.77,-76.47 265.03,-70.49 263.2,-77.24"/>
+</g>
+<!-- A0&#45;&gt;C1 -->
+<g id="edge10" class="edge">
+<title>A0&#45;&gt;C1</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M371,-49.82C392.87,-56.42 418.82,-64.24 443.24,-71.6"/>
+<polygon fill="black" stroke="black" points="441.97,-74.87 452.55,-74.41 443.99,-68.17 441.97,-74.87"/>
+<text text-anchor="middle" x="412.5" y="-79.19" font-family="Helvetica, Arial, sans-serif" font-size="16.00">候选位置</text>
+</g>
+<!-- C2 -->
+<g id="node8" class="node">
+<title>C2</title>
+<polygon fill="#ffffff" stroke="black" points="761.25,-115 632,-115 632,-79 761.25,-79 761.25,-115"/>
+<text text-anchor="middle" x="696.62" y="-93.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">MTT 分区兼容</text>
+</g>
+<!-- C1&#45;&gt;C2 -->
+<g id="edge7" class="edge">
+<title>C1&#45;&gt;C2</title>
+<path fill="none" stroke="black" d="M595.16,-97C603.39,-97 611.86,-97 620.22,-97"/>
+<polygon fill="black" stroke="black" points="620.02,-100.5 630.02,-97 620.02,-93.5 620.02,-100.5"/>
+</g>
+<!-- C3 -->
+<g id="node9" class="node">
+<title>C3</title>
+<polygon fill="#ffffff" stroke="black" points="941.75,-115 798.25,-115 798.25,-79 941.75,-79 941.75,-115"/>
+<text text-anchor="middle" x="870" y="-93.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">Merge 并行级别</text>
+</g>
+<!-- C2&#45;&gt;C3 -->
+<g id="edge8" class="edge">
+<title>C2&#45;&gt;C3</title>
+<path fill="none" stroke="black" d="M761.44,-97C769.62,-97 778.08,-97 786.5,-97"/>
+<polygon fill="black" stroke="black" points="786.42,-100.5 796.42,-97 786.42,-93.5 786.42,-100.5"/>
+</g>
+<!-- C4 -->
+<g id="node10" class="node">
+<title>C4</title>
+<polygon fill="#ffffff" stroke="black" points="1111.75,-115 978.75,-115 978.75,-79 1111.75,-79 1111.75,-115"/>
+<text text-anchor="middle" x="1045.25" y="-93.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">Intra/Skip 过滤</text>
+</g>
+<!-- C3&#45;&gt;C4 -->
+<g id="edge9" class="edge">
+<title>C3&#45;&gt;C4</title>
+<path fill="none" stroke="black" d="M942.22,-97C950.34,-97 958.64,-97 966.84,-97"/>
+<polygon fill="black" stroke="black" points="966.81,-100.5 976.81,-97 966.81,-93.5 966.81,-100.5"/>
+</g>
+<!-- Output -->
+<g id="node11" class="node">
+<title>Output</title>
+<polygon fill="#e8f5e9" stroke="#2e7d32" points="1340,-115 1208.5,-115 1208.5,-79 1340,-79 1340,-115"/>
+<text text-anchor="middle" x="1274.25" y="-93.03" font-family="Helvetica, Arial, sans-serif" font-size="18.00">MVP 候选列表</text>
+</g>
+<!-- C4&#45;&gt;Output -->
+<g id="edge12" class="edge">
+<title>C4&#45;&gt;Output</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1119.75,-97C1144.51,-97 1172.18,-97 1197.13,-97"/>
+<polygon fill="black" stroke="black" points="1196.79,-100.5 1206.79,-97 1196.79,-93.5 1196.79,-100.5"/>
+<text text-anchor="middle" x="1160.12" y="-105.05" font-family="Helvetica, Arial, sans-serif" font-size="16.00">有效 MV</text>
+</g>
+</g>
+</svg>
+    </div>
+    <div class="diagram-caption">图 4：空域 MVP 的五邻接取样位置与四级可用性校验流</div>
+
+    <div class="mvp-animation-container">
+        <div>
+            <div style="font-size: 13px; font-weight: bold; color: #475569; margin-bottom: 10px; text-align: center;">扫描取样坐标系 (空间邻接扫描)</div>
+            <div class="mvp-grid">
+                <!-- Row 0 -->
+                <div class="mvp-cell b2">B2</div>
+                <div class="mvp-cell b1">B1</div>
+                <div class="mvp-cell b0">B0</div>
+                <div class="mvp-cell"></div>
+                <!-- Row 1 -->
+                <div class="mvp-cell a1">A1</div>
+                <div class="mvp-cell cur" style="grid-column: span 2; grid-row: span 2;">当前 PU</div>
+                <div class="mvp-cell"></div>
+                <!-- Row 2 -->
+                <div class="mvp-cell"></div>
+                <div class="mvp-cell"></div>
+                <!-- Row 3 -->
+                <div class="mvp-cell a0">A0</div>
+                <div class="mvp-cell"></div>
+                <div class="mvp-cell"></div>
+                <div class="mvp-cell"></div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-size: 12px; color: #64748b; font-style: italic;">*B1模拟 Intra 模式过滤失败</div>
+        </div>
+        
+        <div class="data-arrow">
+            <div style="font-size: 12px; color: #3b82f6; font-weight: bold; margin-bottom: 5px;">Push</div>
+            <div class="arrow-line"></div>
+        </div>
+
+        <div class="mvp-list-box">
+            <div class="mvp-list-title">实时 MVP 候选列表 (Buffer)</div>
+            <div class="mvp-item">idx 0: [MV_A0] (-12, 4) ✓</div>
+            <div class="mvp-item">idx 1: [MV_A1] (-8, 4) ✓</div>
+            <div class="mvp-item">idx 2: [MV_B0] (16, -2) ✓</div>
+            <div class="mvp-item">idx -: [MV_B1] (Intra 过滤) ✗</div>
+            <div class="mvp-item">idx 3: [MV_B2] (0, -4) ✓</div>
+        </div>
+    </div>
+    <div class="diagram-caption">图 4.1 动画：纯 CSS 渲染的 MVP 动态提取与列表填充扫描过程（支持无限放大）</div>
+    
+
+    <div class="algo-steps">
+        <strong class="title">📝 中文算法推导步骤 (空域 MVP 获取)</strong>
+        <ol>
+            <li><strong>位置计算：</strong>根据当前 PU 的坐标和尺寸，推导出 A0/A1/B0/B1/B2 五个邻接采样点的绝对坐标 (xN, yN)。</li>
+            <li><strong>同 CU 判断：</strong>快速检查 (xN, yN) 是否落在当前 CU 内部。若是同 CU，则直接引用本块数据，避免外部内存访问。</li>
+            <li><strong>Z-Scan 可用性：</strong>通过 <code>z_scan_availability()</code> 判断邻接块是否已编码完毕（编码顺序约束）。</li>
+            <li><strong>MTT 兼容修正：</strong>当 CU 采用非对称 MTT 划分（如 <code>mttDepth > 0</code>）时，对 B1/A1 进行特殊的 covering_cu 查找。</li>
+            <li><strong>Intra 过滤：</strong>若邻接块的预测模式为 <code>MODE_INTRA</code> 或 <code>MODE_IPCM</code>，标记为不可用。</li>
+            <li><strong>MV 提取：</strong>根据当前搜索阶段（1/4 像素、1/2 像素或最终 MV），从邻接 CU 的对应 MV 上下文中读取运动矢量。</li>
+        </ol>
+    </div>
+
+    <hr style="margin: 40px 0; border-top: 1px dashed #ccc;">
+
+    <h3>4.2 时域 MVP (Temporal MVP / TMVP)</h3>
+
+    <div class="highlight">
+        <strong>💡 什么是 TMVP (Temporal Motion Vector Prediction)？</strong><br>
+        TMVP 利用参考帧中与当前块<strong>同位置 (Colocated)</strong> 的已编码块的运动矢量，经过 POC 距离缩放后，作为当前块的 MV 候选。这是跨帧级别的运动预测，能有效捕捉帧间运动的时间连续性。
+    </div>
+
+    <div style="text-align: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <svg width="100%" height="auto"
+ viewBox="0.00 0.00 1414.25 113.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 109)">
+<polygon fill="white" stroke="none" points="-4,4 -4,-109 1410.25,-109 1410.25,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_ColProcess</title>
+<path fill="#fff3e0" stroke="#f57c00" d="M408.25,-8C408.25,-8 1150.75,-8 1150.75,-8 1156.75,-8 1162.75,-14 1162.75,-20 1162.75,-20 1162.75,-85 1162.75,-85 1162.75,-91 1156.75,-97 1150.75,-97 1150.75,-97 408.25,-97 408.25,-97 402.25,-97 396.25,-91 396.25,-85 396.25,-85 396.25,-20 396.25,-20 396.25,-14 402.25,-8 408.25,-8"/>
+<text text-anchor="middle" x="779.5" y="-74" font-family="Helvetica, Arial, sans-serif" font-size="20.00">时域 MV 提取流</text>
+</g>
+<!-- CurFrame -->
+<g id="node1" class="node">
+<title>CurFrame</title>
+<polygon fill="#ffffff" stroke="black" points="115.75,-52 0,-52 0,-16 115.75,-16 115.75,-52"/>
+<text text-anchor="middle" x="57.88" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">当前帧 (Cur)</text>
+</g>
+<!-- ColFrame -->
+<g id="node2" class="node">
+<title>ColFrame</title>
+<polygon fill="#f5f5f5" stroke="#999999" points="367.25,-52 253.75,-52 253.75,-16 367.25,-16 367.25,-52"/>
+<text text-anchor="middle" x="310.5" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">参考帧 (Col)</text>
+</g>
+<!-- CurFrame&#45;&gt;ColFrame -->
+<g id="edge3" class="edge">
+<title>CurFrame&#45;&gt;ColFrame</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M116.06,-34C153.53,-34 202.69,-34 242.07,-34"/>
+<polygon fill="black" stroke="black" points="241.91,-37.5 251.91,-34 241.91,-30.5 241.91,-37.5"/>
+<text text-anchor="middle" x="184.75" y="-35.3" font-family="Helvetica, Arial, sans-serif" font-size="16.00">POC Distance</text>
+</g>
+<!-- ColCU -->
+<g id="node4" class="node">
+<title>ColCU</title>
+<polygon fill="#ffffff" stroke="black" points="571.75,-52 404.25,-52 404.25,-16 571.75,-16 571.75,-52"/>
+<text text-anchor="middle" x="488" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">Colocated CU 定位</text>
+</g>
+<!-- ColFrame&#45;&gt;ColCU -->
+<g id="edge4" class="edge">
+<title>ColFrame&#45;&gt;ColCU</title>
+<path fill="none" stroke="black" d="M367.51,-34C375.6,-34 384.11,-34 392.7,-34"/>
+<polygon fill="black" stroke="black" points="384.74,-37.5 394.74,-34 384.74,-30.5 384.74,-37.5"/>
+</g>
+<!-- MVP -->
+<g id="node3" class="node">
+<title>MVP</title>
+<polygon fill="#e8f5e9" stroke="#2e7d32" points="1406.25,-52 1268.75,-52 1268.75,-16 1406.25,-16 1406.25,-52"/>
+<text text-anchor="middle" x="1337.5" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">加入 MVP 列表</text>
+</g>
+<!-- RefList -->
+<g id="node5" class="node">
+<title>RefList</title>
+<polygon fill="#ffffff" stroke="black" points="882,-52 608.75,-52 608.75,-16 882,-16 882,-52"/>
+<text text-anchor="middle" x="745.38" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">参考列表选择 (bColFromL0Flag)</text>
+</g>
+<!-- ColCU&#45;&gt;RefList -->
+<g id="edge1" class="edge">
+<title>ColCU&#45;&gt;RefList</title>
+<path fill="none" stroke="black" d="M571.91,-34C580.12,-34 588.6,-34 597.21,-34"/>
+<polygon fill="black" stroke="black" points="597.06,-37.5 607.06,-34 597.06,-30.5 597.06,-37.5"/>
+</g>
+<!-- ScaleMV -->
+<g id="node6" class="node">
+<title>ScaleMV</title>
+<polygon fill="#e1f5fe" stroke="#0288d1" points="1154.75,-52 919,-52 919,-16 1154.75,-16 1154.75,-52"/>
+<text text-anchor="middle" x="1036.88" y="-30.02" font-family="Helvetica, Arial, sans-serif" font-size="18.00">MV 缩放 (tmvpScaleFactor)</text>
+</g>
+<!-- RefList&#45;&gt;ScaleMV -->
+<g id="edge2" class="edge">
+<title>RefList&#45;&gt;ScaleMV</title>
+<path fill="none" stroke="black" d="M882.22,-34C890.61,-34 899.03,-34 907.38,-34"/>
+<polygon fill="black" stroke="black" points="907.2,-37.5 917.2,-34 907.2,-30.5 907.2,-37.5"/>
+</g>
+<!-- ScaleMV&#45;&gt;MVP -->
+<g id="edge5" class="edge">
+<title>ScaleMV&#45;&gt;MVP</title>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M1162.75,-34C1194.68,-34 1228.14,-34 1257.08,-34"/>
+<polygon fill="black" stroke="black" points="1256.84,-37.5 1266.84,-34 1256.84,-30.5 1256.84,-37.5"/>
+<text text-anchor="middle" x="1211.75" y="-35.3" font-family="Helvetica, Arial, sans-serif" font-size="16.00">Scaled MV</text>
+</g>
+</g>
+</svg>
+    </div>
+    <div class="diagram-caption">图 5：TMVP 时域 MV 提取与 POC 缩放流水线</div>
+
+    <div class="algo-steps">
+        <strong class="title">📝 中文算法推导步骤 (TMVP 缩放)</strong>
+        <ol>
+            <li><strong>参考帧选择：</strong>根据 <code>bColFromL0Flag</code> 选择 L0 或 L1 参考帧作为 Colocated 帧。</li>
+            <li><strong>CU 定位：</strong>在 Colocated 帧中，通过 8×8（VVC）或 16×16（HEVC）粒度的压缩存储表，定位同位 CU 并读取其 MV。</li>
+            <li><strong>距离缩放：</strong>计算 <code>iScale = (tb × tx + 32) >> 6</code>，其中 tb 为当前帧与当前参考帧的 POC 差，td 为 Colocated 帧与其参考帧的 POC 差。</li>
+            <li><strong>MV 应用：</strong>通过 <code>scaleMv(iScale, colMv)</code> 对 Colocated MV 进行等比缩放后，加入候选列表。</li>
+        </ol>
+    </div>
+
+    <h3>4.3 RDO 与 ME 中 MVP 机制的硬件架构对比</h3>
+    
+    <div class="highlight">
+        <strong>💡 核心差异：搜索起点预测 vs. 最终模式决策</strong><br>
+        虽然 RDO (Rate Distortion Optimization) 和 ME (Motion Estimation) 都使用空域和时域 MVP，但它们在硬件架构上的定位和提取机制有着本质的区别。ME 的 MVP 旨在为搜索提供<strong>优良的起点</strong>以节省带宽，而 RDO 的 MVP (如 Merge List 和 AMVP List) 则直接作为<strong>最终编码模式的候选</strong>被严格评估。
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>对比维度</th>
+          <th>ME (运动估计) 前端 MVP 机制</th>
+          <th>RDO (率失真优化) 后端 MVP 机制</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>核心目标</strong></td>
+          <td>寻找起始搜索中心，降低 MVD 代价，快速收敛搜索</td>
+          <td>严格遵守视频标准构建候选列表，进行精确比特流和失真评估</td>
+        </tr>
+        <tr>
+          <td><strong>硬件流水线位置</strong></td>
+          <td>处于流水线极前端，通常与重构环路解耦</td>
+          <td>处于流水线后端，必须等待真实像素重构和 CABAC 状态更新</td>
+        </tr>
+        <tr>
+          <td><strong>数据源约束 (突破口)</strong></td>
+          <td>读取早期流水线产生（尚未完全定型）的 <strong>memdMvCtx 或 fracMvCtx 缓存态 MV</strong>，彻底打破重构流水线的数据依赖</td>
+          <td>必须使用 100% 标准合规的<strong>完全重构 MV</strong>，否则解码端会引发宏块崩溃 (Mismatch)</td>
+        </tr>
+        <tr>
+          <td><strong>列表构建与修剪 (Pruning)</strong></td>
+          <td>粗略且贪心，一旦获取有效预测子即刻启动搜索，无复杂去重逻辑</td>
+          <td>极其严苛，包含繁复的满载修剪 (Pruning)、双向结合及零矢量填充 (Zero Padding)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="critical-alert">
+      <strong style="color: #991b1b; display: block; margin-bottom: 8px;">🔥 架构优化突破：ME 与 RDO 的 MVP 彻底解耦 (Decoupling)</strong>
+      在我们的硬件设计中，最大的瓶颈在于 RDO 对重构 MV 的强数据依赖，这会导致后续流水线气泡 (Bubble)。为了解决这个问题，我们的 <strong>ME 模块完全脱离标准约束</strong>，建立了一套自己专用的、仅依赖于粗略流水阶段的“前端缓存字典”。这意味着 ME 拿到的 MVP 可能在数值上与标准 RDO 的 MVP 有偏差，但能实现 100% 的并行化延迟掩盖，而 RDO 依然恪守标准的重构流。
+    </div>
+
+    
+    
+    <div style="margin-top: 30px;">
+        <h4 style="color: #ef4444; border-bottom: 1px solid #fecaca; padding-bottom: 10px;">🔍 核心印证：解耦机制与“两套账本”策略</h4>
+        <p>为了实现 100% 的并行化延迟掩盖，我们的硬件（及其对应的 C-Model）在底层获取可用邻接块时，彻底抛弃了同步等待，而是巧妙地采用了<strong>“两套相互独立、不同步更新的 MV 状态账本”</strong>的设计思想：</p>
+
+        <!-- Section 1 -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+            <div style="font-size: 14px; font-weight: bold; color: #475569; letter-spacing: 1px; border-bottom: 1px dotted #cbd5e1; margin-bottom: 15px; padding-bottom: 10px;">
+                1. 建立独立内部账本 (MEMD 粗略上下文)
+            </div>
+            <ol style="padding-left: 20px; line-height: 1.8; margin: 0; color: #334155; font-size: 14px;">
+                <li><strong style="color: #0284c7;">官方账本 (RDO)：</strong> 必须等待真实像素经过完整的 DCT、量化、CABAC 这一套漫长的流程后，才能把最终盖棺定论的合规 MV 写入。如果前端去死等官方账本，流水线必然卡死。</li>
+                <li><strong style="color: #0284c7;">内部预估账本 (MEMD)：</strong> 运动估计前瞻阶段一旦算出一个大概的最优 MV，绝不等待后续重构，立刻将其写进专属的内部缓存账本（即 C-Model 中的 <code>memdMvCtx</code>）。</li>
+                <li><strong style="color: #0284c7;">查账与强行透传：</strong> 当底层函数发现当前仍处于初期的运动估计阶段时，直接打断标准重构链，强行定位并提取邻居块的 <code>memdMvCtx</code>，完成半成品数据的瞬间透传。</li>
+            </ol>
+        </div>
+
+        <!-- Section 2 -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+            <div style="font-size: 14px; font-weight: bold; color: #475569; letter-spacing: 1px; border-bottom: 1px dotted #cbd5e1; margin-bottom: 15px; padding-bottom: 10px;">
+                2. 多级特定精度账本 (贪心金字塔搜索原理)
+            </div>
+            <p style="font-size: 13px; color: #334155; margin-top: 0; margin-bottom: 15px; line-height: 1.6;">
+                正如你所说，精搜本质就是一个<strong>贪心算法 (Greedy Algorithm) 构成的金字塔搜索</strong>：<br>
+                下一个更高精度的 MV，其“搜索网格的中心起点”完全依赖于上一个精度的最优搜索结果。正是因为这种层层递进的强制空间依赖，C-Model 才必须在底层维护 <code>fracMvCtx</code> 缓存。
+            </p>
+            <div style="text-align: center; margin-top: 10px;">
+                <img src="../assets/pyramid_search.svg" alt="金字塔贪心搜索原理" style="max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px;">
+            </div>
+        </div>
+
+        <!-- The Result: Section 3 is not a strategy, but the outcome -->
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+            <div style="font-size: 14px; font-weight: bold; color: #166534; letter-spacing: 1px; border-bottom: 1px dotted #86efac; margin-bottom: 15px; padding-bottom: 10px;">
+                🎯 终极结果：打断依赖链，实现 100% 硬件流水线并行
+            </div>
+            <p style="font-size: 14px; color: #166534; line-height: 1.8; margin: 0;">
+                由于底层的 MEMD 和多级精搜通过上述<strong>“两套独立账本”</strong>旁路了真实的数据流，宏块 N+1 的前端计算（如获取左侧预测子）完全不需要等待宏块 N 的后端 RDO 收尾工作结束。
+                <br><br>
+                在硬件时间轴上，宏块 N+1 的前端计算与宏块 N 的后端 RDO 延展计算实现了<strong>完美的零延迟重叠掩盖</strong>，彻底消除了流水线 Bubble。
+            </p>
+            <div style="text-align: center; margin-top: 20px;">
+                <img src="../assets/gantt_chart.svg" alt="甘特图" style="max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px;">
+            </div>
+        </div>
+    </div>
+    
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>5. ME 精搜与 9 点菱形搜索</h2>
+    <p>在粗搜定位到初始最优 MV 后，精搜阶段采用 <strong>3×3 九点全搜索</strong>（Half-Pel 和 Quarter-Pel 各一轮），在初始最优点周围的 ±1 范围内遍历所有候选位置，选取 RD Cost 最小者。</p>
+
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+        <!-- 纯 HTML 渲染的 9 点搜索网格 -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background: var(--primary); border-radius: 50%;"></span>
+                <span style="font-size: 15px; font-weight: 700; color: #334155;">3×3 九点搜索网格 (硬件扫描顺序)</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 80px); gap: 8px; justify-content: center;">
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(-1,-1)</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(0,-1)</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(+1,-1)</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(-1, 0)</div>
+                <div style="height: 60px; background: #dcfce7; border: 2px solid #22c55e; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #166534;">Center ★</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(+1, 0)</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(-1,+1)</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(0,+1)</div>
+                <div style="height: 60px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1;">(+1,+1)</div>
+            </div>
+            <div style="text-align: center; margin-top: 10px; font-size: 0.85em; color: #64748b;">硬件按行扫描顺序 (左上→右下)，确保 RD Cost 相同时 MV 结果与硬件一致</div>
+        </div>
+    </div>
+    <div class="diagram-caption">图 6：Half-Pel / Quarter-Pel 精搜的 3×3 九点全搜索网格</div>
+
+    <div class="success">
+        <strong>我们的硬件对齐策略：</strong><br>
+        代码中 <code>s_acMvRefineH[]</code> 和 <code>s_acMvRefineQ[]</code> 两张搜索偏移表的遍历顺序经过<strong>精心重排</strong>，严格匹配硬件的行扫描顺序 (左上→右下)。这确保了当两个候选位置的 RD Cost 完全相同时，C-Model 选出的位置与硬件选出的位置完全一致（<code>MEQN_SEARCH_REORDER_05</code> 宏控制）。
+    </div>
+
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>6. Inter 模块与 RDO 的核心数据握手 (Handshake Protocol)</h2>
+    <p>为了使得硬件流水线彻底解耦，ME/MC (Inter 预测模块) 跑完整个搜索和插值流程后，会将一组打包好的“核心结果负载”通过 FIFO 或共享 SRAM 传递给后端的 RDO 模块进行最终成本计算和决策。以下是传输链路的关键数据位图：</p>
+
+    <div class="highlight">
+        <strong>💡 架构约束：前向传递与反向禁止</strong><br>
+        硬件设计中，数据流是严格的单向传递（ME -> MC -> RDO）。RDO 计算完的比特或者真实的 SAD，绝不允许反向流回 ME 指导下一步动作，否则会形成致命的组合逻辑环路 (Combinational Loop)。
+    </div>
+
+
+    <!-- Handshake Diagram Section -->
+    <div style="background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+        <div style="font-size: 15px; font-weight: 700; color: #44403c; margin-bottom: 15px; border-bottom: 2px solid #d6d3d1; padding-bottom: 8px;">
+            🧑‍💼 核心协作模型：“初试官”与“终面大老板”
+        </div>
+        <p style="font-size: 13px; color: #57534e; line-height: 1.6; margin-bottom: 20px;">
+            整个 Inter 预测与 RDO 的分工非常明确：<br>
+            <strong>ME 引擎 (前端)</strong> 扮演“初试官”，在基于 MVP 的有限网格搜索中，用较粗略的代价 (SATD) 快速筛选出最具潜力的 <strong>3 组精英候选</strong>。<br>
+            <strong>RDO 模块 (后端)</strong> 扮演“终面老板”，它接收这 3 组候选后，启动最昂贵的计算资源 (真正的 DCT/Quant/CABAC)，以真实的码率和失真计算出最精确的 Cost，并敲定最终写入码流的唯一 <strong>Best MV</strong>。
+        </p>
+        <div style="text-align: center;">
+            <img src="../assets/me_rdo_handshake.svg" alt="ME 与 RDO 握手架构" style="max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px;">
+        </div>
+    </div>
+
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">信号类别 (Signal Group)</th>
+          <th style="width: 30%;">位宽估算 (Bit-width)</th>
+          <th>物理含义与 RDO 使用场景 (Physical Meaning & RDO Usage)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>候选运动矢量集合<br>(Best MV Candidates)</strong></td>
+          <td>(16-bit X + 16-bit Y) × 2 (List0 & List1) = 64 bits</td>
+          <td>
+            <div style="font-size: 13px; line-height: 1.5;">
+              <strong>选出机制：</strong>由 ME 引擎在 1/4 像素精搜阶段，根据最小的 <strong>SATD 代价 (SATD + &lambda; &middot; Approx_MVD_Bits)</strong> 从所有搜索点中胜出。<br>
+              <strong>候选数量：</strong>在底层的 C-Model 架构中，ME 引擎会强制打包透传 <strong>3 组最优候选</strong>给后端的 RDO 模块：<br>
+              1. <strong>Top 1 L0 MV</strong> (前向最优)<br>
+              2. <strong>Top 1 L1 MV</strong> (后向最优)<br>
+              3. <strong>Bi-pred MV Pair</strong> (并非简单的 L0+L1 组合，在 C-Model 中由专门的 <code>xPatternRefinementBI()</code> 或 <code>xInterBiCost()</code> 针对双向联合代价面进行了专有精搜提纯)。<br>
+              <strong>RDO 使用场景：</strong>RDO 会依次让这 3 组 MV 减去后端精准计算的 AMVP Predictor，送入 CABAC 算真实的 MVD Bits，并基于变换量化 (T/Q) 算出真实的 SSD 失真，最终决出胜者。
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>参考帧索引 (RefIdx)</strong></td>
+          <td>4-bit × 2 = 8 bits</td>
+          <td>最优 MV 指向的具体参考帧索引。RDO 计入比特开销，并结合最终模式输出给熵编码模块。</td>
+        </tr>
+        <tr>
+          <td><strong>预测方向 (InterDir)</strong></td>
+          <td>2 bits (L0, L1, Bi-pred)</td>
+          <td>表示是单向还是双向预测。决定 RDO 在处理比特率评估时的上下文 (Context) 模型选择。</td>
+        </tr>
+        <tr>
+          <td><strong>预测像素块 (Pred Pixels)</strong></td>
+          <td>对于 64x64: 4096 bytes (Luma) + 2048 bytes (Chroma)</td>
+          <td>MC 模块通过 8-Tap 亚像素插值滤波器生成的最终预测块。这是握手中<strong>最庞大</strong>的数据载荷。RDO 拿到后，会将其与原始像素做差生成残差，然后送入后续的 DCT 变换与量化 (T/Q) 硬件计算真实的失真 (SSD/SSE)。</td>
+        </tr>
+        <tr>
+          <td><strong>前端粗估代价 (ME Cost)</strong></td>
+          <td>32 bits</td>
+          <td>ME 阶段基于 SATD 算出的局部最优代价。虽然 RDO 最终会重新计算精准 Cost，但可以将此值作为<strong>提前终止门限 (Early Termination Threshold)</strong>。若 ME Cost 已经极大，RDO 可直接跳过对该 PU 的复杂计算以节省功耗。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="success">
+        <strong>硬件数据流打包策略 (Data Packing Strategy)：</strong><br>
+        在芯片 RTL 设计中，前三项（MV, RefIdx, InterDir, ME Cost）属于**控制流信息**，总计仅百余 bits，会打包成一个 Header 在一个时钟周期内传递。而庞大的 **Pred Pixels** 属于**数据流信息**，通常通过 AXI / SRAM 突发写入 (Burst Write) 到 RDO 的专有缓存中。
+    </div>
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>7. 架构边界情况：CU64 模式下 Inter 预测的均值推导 (Averaging) 机制</h2>
+    <p>在咱们的 C-Model 中，考虑到庞大的计算面积开销，底层 Inter 引擎在处理 64x64 超大块时，<strong>没有</strong>进行真实的 64 级别搜索，而是采用了<strong>子块均值融合</strong>的降维手段：</p>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 20px; margin-bottom: 30px;">
+        <h4 style="color: #0369a1; border-bottom: 1px solid #bae6fd; padding-bottom: 10px; margin-top: 0;">🌐 Inter 模式：自下而上的“均值推导”策略</h4>
+        <p style="font-size: 14px; color: #334155; line-height: 1.6;">
+            Inter 引擎在架构上<strong>保留</strong>了 CU64 甚至 MTT（如 BT/TT）的概念，但规避了庞大的整块搜索开销。具体做法是：
+        </p>
+        <ul style="font-size: 13.5px; color: #475569; padding-left: 20px; line-height: 1.6;">
+            <li><strong>时序依赖 (Timing Dependency)：</strong>必须要等待覆盖该块的所有相关 32x32 子块<strong>全部跑完</strong>各自的 ME (整数搜) 之后，才能拿到所有的 MV 结果向上汇总求均值，<strong>并不存在“只算部分块提前决定”的逻辑</strong>。</li>
+            <li><strong>CU64x64：</strong> 等到底层 4 个 32x32 全部做完，将这 4 个 MV 取平均 (<code>average of 4 CU32x32 mvs</code>)。</li>
+            <li><strong>CU64_BT (如 64x32)：</strong> 等覆盖该区域的 2 个 32x32 做完，取这 2 个 MV 的平均。</li>
+            <li><strong>CU64_TT 中间块：</strong> 等覆盖区域的 4 个 32x32 做完取平均。</li>
+        </ul>
+        <div style="background: #eff6ff; padding: 10px; border-left: 4px solid #3b82f6; font-size: 12.5px; color: #1e40af; margin-top: 15px;">
+            <strong>💡 C-Model 理论依据：</strong><br>
+            如果一个 64x64 不该被划分，那它底下的 32x32 必定有着极其相似的 MV，直接让底层 32x32 分别算完再求平均，是性价比最高且逻辑最严密的降维方案。
+        </div>
+        
+        <div style="text-align: center; margin-top: 25px;">
+            <img src="../assets/cu64_inter_inference_strategy.svg" alt="CU64 Inter 平均推导策略" style="max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-radius: 8px;">
+        </div>
+    </div>
+
+    
+</div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tocList = document.getElementById('toc-list');
+        const topNav = document.getElementById('top-nav');
+        const headers = document.querySelectorAll('.container h2:not(.toc-title), .container h3');
+        const mainContent = document.getElementById('main-content');
+        
+        headers.forEach((header, index) => {
+            const id = 'section-' + index;
+            header.id = id;
+            
+            const li = document.createElement('li');
+            li.className = header.tagName === 'H2' ? 'level-2' : 'level-3';
+            const a = document.createElement('a');
+            a.href = '#' + id;
+            a.textContent = header.textContent;
+            
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+                mainContent.scrollTo({ top: document.getElementById(id).offsetTop - 40, behavior: 'smooth' });
+            });
+            
+            li.appendChild(a);
+            tocList.appendChild(li);
+
+            if (header.tagName === 'H2' && topNav) {
+                const topA = document.createElement('a');
+                topA.href = '#' + id;
+                topA.className = 'top-nav-link';
+                topA.textContent = header.textContent;
+                topA.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    mainContent.scrollTo({ top: document.getElementById(id).offsetTop - 40, behavior: 'smooth' });
+                });
+                topNav.appendChild(topA);
+            }
+        });
+        
+        mainContent.addEventListener('scroll', () => {
+            let currentId = '';
+            let currentH2Id = '';
+            headers.forEach(header => {
+                if (mainContent.scrollTop >= header.offsetTop - 100) {
+                    currentId = header.id;
+                    if (header.tagName === 'H2') currentH2Id = header.id;
+                }
+            });
+            
+            if (currentId) {
+                document.querySelectorAll('.sidebar a').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentId) link.classList.add('active');
+                });
+            }
+            if (currentH2Id) {
+                document.querySelectorAll('.top-nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentH2Id) link.classList.add('active');
+                });
+            } else if (currentId) {
+                let foundH2 = '';
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i].id === currentId) {
+                        for (let j = i; j >= 0; j--) {
+                            if (headers[j].tagName === 'H2') { foundH2 = headers[j].id; break; }
+                        }
+                        break;
+                    }
+                }
+                if (foundH2) {
+                    document.querySelectorAll('.top-nav-link').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + foundH2) link.classList.add('active');
+                    });
+                }
+            }
+        });
+        
+        if(tocList.firstChild) tocList.firstChild.querySelector('a').classList.add('active');
+        if(topNav && topNav.firstChild) topNav.firstChild.classList.add('active');
+    });
+</script>
+</body>
+</html>

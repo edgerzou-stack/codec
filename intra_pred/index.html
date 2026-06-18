@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoEncoder_Project 帧内预测架构总结</title>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ 
+          startOnLoad: true, 
+          theme: 'default',
+          useMaxWidth: false,
+          themeVariables: { fontSize: '30px' },
+          flowchart: { nodeSpacing: 50, rankSpacing: 70, curve: 'bumpX' }
+      });
+    </script>
+    <style>
+        :root {
+            --primary: #4a148c;
+            --secondary: #7b1fa2;
+            --accent: #ff6f00;
+            --bg: #f3e5f5;
+            --card-bg: #ffffff;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        body { margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; background: #f8fafc; }
+        .sidebar { width: 300px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; padding: 30px; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .sidebar h2.toc-title { font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1px; border-left: none; padding-left: 0; margin-top: 0; }
+        .sidebar ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar li { margin-bottom: 8px; }
+        .sidebar a { color: #475569; text-decoration: none; display: block; padding: 8px 12px; border-radius: 6px; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover { background: #f1f5f9; color: var(--primary); }
+        .sidebar a.active { background: #eff6ff; color: var(--primary); font-weight: 600; border-left: 3px solid var(--primary); }
+        .sidebar li.level-2 a { padding-left: 12px; }
+        .sidebar li.level-3 a { padding-left: 30px; font-size: 13px; color: #64748b; }
+        
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--card-bg); padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+
+        .container {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            border-bottom: 3px solid var(--secondary);
+            padding-bottom: 15px;
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: var(--secondary);
+            margin-top: 40px;
+            border-left: 5px solid var(--secondary);
+            padding-left: 15px;
+        }
+        h3 {
+            color: #555;
+        }
+        .highlight {
+            background-color: #f3e5f5;
+            border-left: 4px solid var(--secondary);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .success {
+            background-color: #e8f5e9;
+            border-left: 4px solid #2e7d32;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            background: #fafafa;
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .mermaid-stretch {
+            width: 100%;
+        }
+        /* When useMaxWidth is false, SVGs render at their true calculated width. 
+           We remove the 100% constraint so they don't shrink, allowing horizontal scroll.
+           If we want small diagrams to still stretch, we can set min-width: 100%. */
+        .mermaid svg {
+            min-width: 100% !important; 
+            max-width: none !important;
+        }
+        .diagram-caption {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: -15px;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        :root { --primary: #0288d1; }
+        .top-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0; }
+        .top-nav-link { background: #f8fafc; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .top-nav-link:hover { background: #e0f2fe; }
+        .top-nav-link.active { background: var(--primary); color: white; border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="toc-title">目录导航</h2>
+    <ul id="toc-list"></ul>
+</div>
+<div class="main-content" id="main-content">
+<div class="container">
+    <div class="top-nav" id="top-nav"></div>
+    <h1>VideoEncoder_Project 帧内预测与模式决策机制总结<br><span style="font-size:0.6em; color:#7f8c8d;">Intra Prediction Architecture & Hardware Bottlenecks</span></h1>
+
+    <h2>1. 帧内预测的高阶架构瓶颈与 C-Model 应对策略</h2>
+    <p>针对业界 Intra Prediction 极其头疼的架构瓶颈，我们目前的 C-Model 进行了一系列的巧妙化解或规避。本章将详细解析这些痛点及我们的解决方案。</p>
+    
+    <h3>1.1 亮度 (Luma) 与色度 (Chroma) 的并行决策优化</h3>
+    <p>在标准视频编码中，色度预测经常需要复用亮度的最佳预测方向（如 DM 模式/Chroma from Luma）。理论上，这意味着色度必须死等亮度算完才能开工。但在我们的 <strong>C-Model (以及对应的实际硬件) 中做了深度的并行优化</strong>：将色度的候选模式拆分为“独立模式”(如 Planar, DC, 水平, 垂直) 和“依赖模式”(DM)。独立模式会与 Luma 决策流<strong>完全并行</strong>计算 Cost，隐藏了大量延迟；只有 DM 模式需要短暂等待 Luma 输出 Best Mode 后再做计算和最终比对。</p>
+    
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+        <div>
+            <div class="mermaid">
+            flowchart LR
+                LumaStart["开始 Luma 决策"] --> LumaCost{"计算 Luma Cost"} --> LumaBest["决出 Best Luma Mode"]
+                
+                LumaBest -. "透传 Best Mode" .-> DMStart["DM 模式 (Chroma from Luma)"]
+                DMStart --> DMCost{"计算 DM Cost"} --> ChromaBest["参与最终 Chroma 比较"]
+                
+                style LumaCost fill:#e1f5fe,stroke:#0288d1
+                style LumaBest fill:#e1f5fe,stroke:#0288d1
+                style DMStart fill:#fff3e0,stroke:#f57c00
+                style DMCost fill:#fff3e0,stroke:#f57c00
+            </div>
+            <div class="diagram-caption">图 1-a：DM 模式的强依赖流水线 (色度必须死等亮度彻底完工)</div>
+        </div>
+
+        <div>
+            <div class="mermaid">
+            flowchart LR
+                subgraph 并行区 ["高并发计算区域 (隐藏色度计算延迟)"]
+                    direction TB
+                    Luma["Luma 候选模式流"] --> LumaCost{"并行计算 Luma Cost"}
+                    ChromaInd["独立 Chroma 模式<br>(Planar/DC/水平/垂直)"] --> ChromaCost{"并行计算 Chroma Cost"}
+                end
+                
+                LumaCost --> LumaBest["决出 Best Luma Mode"]
+                ChromaCost --> ChromaWait["独立模式结果缓存"]
+                
+                LumaBest --> Merge["最终候选比较<br>(独立模式 + DM模式)"]
+                ChromaWait --> Merge
+                Merge --> Final["确定 Best Chroma Mode"]
+                
+                style LumaCost fill:#e1f5fe,stroke:#0288d1
+                style ChromaCost fill:#e8f5e9,stroke:#2e7d32
+                style ChromaWait fill:#e8f5e9,stroke:#2e7d32
+            </div>
+            <div class="diagram-caption">图 1-b：独立 Chroma 模式的并行优化流 (C-Model 利用软硬件并行完全掩盖延迟)</div>
+        </div>
+    </div>
+
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+<h2>2. 传统帧内预测四大痛点解析与 C-Model 规避方案</h2>
+    <h3>2.1 痛点解析一：MPM 的强依赖流水线气泡</h3>
+    <div class="highlight" style="background-color: #e3f2fd; border-left-color: #1976d2;">
+        <strong>💡 什么是 MPM (Most Probable Mode) 算法？</strong><br>
+        MPM 是一种利用空间相邻性来压缩模式编码比特数的算法。核心思想是：当前块的纹理方向极有可能与它左侧和上方的相邻块保持一致。因此，编码器会根据左块和上块的最终预测模式，推导出一个“最可能模式列表”。如果当前块最优模式在这个列表中，只需极少比特即可编码。
+        
+        <div class="mermaid">
+        graph LR
+            Top[上方相邻块 Top Mode] --> MPMGen{推导 MPM 列表}
+            Left[左侧相邻块 Left Mode] --> MPMGen
+            MPMGen --> MPMList[生成: MPM List <br> 包含 3~6 个高优候选]
+            
+            style Top fill:#f5f5f5,stroke:#999
+            style Left fill:#f5f5f5,stroke:#999
+            style MPMGen fill:#e1f5fe,stroke:#0288d1
+            style MPMList fill:#fff3e0,stroke:#f57c00
+        </div>
+        <div class="diagram-caption" style="margin-bottom: 0;">图 4：MPM 算法的空间依赖推导模型</div>
+        <div style="margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0288d1; border-radius: 4px; color: #333; font-size: 0.95em;">
+            <strong style="color: #0288d1; display: block; margin-bottom: 10px;">📝 中文算法推导步骤 (MPM 生成)</strong>
+            <ol style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 5px;"><strong>强依赖卡点：</strong>必须死等左侧块和上方块的 RDO 全部结束，提取它们的最终模式 (Left Mode, Top Mode)。</li>
+                <li style="margin-bottom: 5px;"><strong>判断与生成：</strong>
+                    <ul style="margin: 5px 0 0 0; padding-left: 20px; list-style-type: circle;">
+                        <li>如果 左侧模式 == 上方模式：则 MPM 列表填入 [左侧模式, 平滑模式(Planar), 均值模式(DC)]。</li>
+                        <li>如果 左侧模式 != 上方模式：则 MPM 列表填入 [左侧模式, 上方模式, 平滑模式(Planar)]。</li>
+                    </ul>
+                </li>
+                <li><strong>返回结果：</strong>将生成的 MPM 列表提供给当前块的模式粗选 (MD) 和 RDO 模块使用。</li>
+            </ol>
+        </div>
+        
+        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #90caf9;">
+            <strong style="color: #0277bd;">🔍 为什么只看“左”和“上”，却能生成 3~6 个候选？</strong><br>
+            在实际的一帧画面中，CU（编码单元）是按从左到右、从上到下顺序编码的（Z-Scan 顺序）。当编码到当前 CU 时，只有它的<strong>左侧块</strong>和<strong>上方块</strong>已经完成了真实的 RDO 重建，其模式是确定的。
+            <br><br>
+            <strong>数量扩散逻辑（C-Model 严格推导）：</strong><br>
+            如果 Left 和 Top 模式不相同（例如 Left 是水平纹理，Top 是垂直纹理），说明当前块处于纹理交界处。此时 MPM 列表不仅会直接收录 Left 和 Top，还会兜底塞入无方向的 平滑模式（Planar） 和 均值模式（DC）。<br>
+            如果在 VVC 等高级标准中，为了提高命中率，算法甚至会在 Left 模式的角度上做微调（例如 Left-1度, Left+1度），从而将候选列表膨胀到 6 个。这就解释了为什么 2 个输入源能裂变出 3~6 个候选。
+            
+            <!-- 全新设计的 MPM 候选裂变过程图解 (CSS Native) -->
+            <div style="background: linear-gradient(145deg, #f8fafc, #f1f5f9); border: 1px solid #e2e8f0; border-radius: 16px; padding: 40px; margin: 30px 0; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5), 0 8px 16px rgba(0,0,0,0.03); display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                
+                <!-- 1. 空间模型 -->
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div style="font-weight: bold; color: #475569; margin-bottom: 20px;">空间取样依赖</div>
+                    <div style="position: relative; width: 180px; height: 180px;">
+                        <!-- 左上角占位 -->
+                        <div style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; background: #e2e8f0; border-radius: 8px; opacity: 0.5;"></div>
+                        <!-- Top CU -->
+                        <div style="position: absolute; top: 0; left: 65px; width: 115px; height: 60px; background: linear-gradient(135deg, #86efac, #22c55e); border-radius: 8px; box-shadow: 0 4px 6px rgba(34,197,94,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">
+                            <span>上方 CU</span>
+                            <span style="font-size: 10px; opacity: 0.9; margin-top: 2px;">模式 26 (垂直)</span>
+                        </div>
+                        <!-- Left CU -->
+                        <div style="position: absolute; top: 65px; left: 0; width: 60px; height: 115px; background: linear-gradient(135deg, #86efac, #22c55e); border-radius: 8px; box-shadow: 0 4px 6px rgba(34,197,94,0.2); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold; text-align: center;">
+                            <span>左侧<br>CU</span>
+                            <span style="font-size: 10px; opacity: 0.9; margin-top: 4px;">模式 10<br>(水平)</span>
+                        </div>
+                        <!-- Curr CU -->
+                        <div style="position: absolute; top: 65px; left: 65px; width: 115px; height: 115px; background: #fee2e2; border: 2px dashed #ef4444; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #dc2626; font-size: 13px; font-weight: bold; text-align: center; box-shadow: inset 0 0 10px rgba(239,68,68,0.1);">
+                            当前待预测<br>CU
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 数据流与算法模块 -->
+                <div style="display: flex; flex-direction: column; align-items: center; position: relative; margin: 0 10px;">
+                    <!-- 数据流线 -->
+                    <div style="display: flex; flex-direction: column; gap: 30px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 12px; font-weight: bold; color: #059669; background: #d1fae5; padding: 4px 10px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">提取 Top = 26</span>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 12px; font-weight: bold; color: #059669; background: #d1fae5; padding: 4px 10px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">提取 Left = 10</span>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </div>
+                    </div>
+                    
+                    <!-- 算法中心 -->
+                    <div style="background: white; border-top: 5px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; width: 160px; position: relative;">
+                        <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: #3b82f6; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(59,130,246,0.3);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        </div>
+                        <h4 style="margin: 15px 0 5px 0; color: #1e293b; font-size: 15px;">MPM 生成算法</h4>
+                        <p style="margin: 0; font-size: 12px; color: #64748b;">(C-Model 严格推导)</p>
+                    </div>
+                </div>
+
+                <!-- 3. 输出结果线 -->
+                <div style="display: flex; align-items: center; margin-top: 30px;">
+                    <svg width="40" height="24" viewBox="0 0 40 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M5 12h30M28 5l7 7-7 7"/></svg>
+                </div>
+
+                <!-- 4. MPM 列表输出 -->
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div style="font-weight: bold; color: #475569; margin-bottom: 20px;">裂变结果集</div>
+                    <div style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-left: 5px solid #f59e0b; width: 200px;">
+                        <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 12px 15px; font-weight: bold; color: #b45309; font-size: 13px; text-align: center; border-bottom: 1px solid #fcd34d;">
+                            6 维 MPM 候选列表
+                        </div>
+                        <ul style="list-style: none; margin: 0; padding: 15px; font-size: 13px; color: #334155;">
+                            <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: #ea580c;">1. 模式 10</strong> <span style="color: #94a3b8; font-size: 11px;">(左侧命中)</span></li>
+                            <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: #ea580c;">2. 模式 26</strong> <span style="color: #94a3b8; font-size: 11px;">(上方命中)</span></li>
+                            <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: #2563eb;">3. 模式 0</strong> <span style="color: #94a3b8; font-size: 11px;">(Planar兜底)</span></li>
+                            <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: #2563eb;">4. 模式 1</strong> <span style="color: #94a3b8; font-size: 11px;">(DC 兜底)</span></li>
+                            <li style="margin-bottom: 8px; display: flex; justify-content: space-between;"><strong style="color: #8b5cf6;">5. 模式 9</strong> <span style="color: #94a3b8; font-size: 11px;">(左侧 -1)</span></li>
+                            <li style="display: flex; justify-content: space-between;"><strong style="color: #8b5cf6;">6. 模式 27</strong> <span style="color: #94a3b8; font-size: 11px;">(上方 +1)</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="diagram-caption" style="margin-bottom: 0;">图 4-1：全新设计的实际 Frame 空间下 MPM 候选裂变流转</div>
+        </div>
+    </div>
+    <p><strong>硬件流水线瓶颈：</strong> 为了生成当前块的 MPM 列表，它必须<strong>死等</strong>左方和上方块彻底做完 RDO 并决出最终模式。在硬件上，这意味着相邻块之间存在强烈的模式层面的数据依赖，导致极长的等待时间和流水线气泡。</p>
+    <div class="success">
+        <strong>我们的 C-Model 做法 (区域冻结降级)：</strong><br>
+        通过走读代码发现，C-Model 在这块采用了和 Inter HMVP 高度一致的**区域冻结思路**。例如代码中的 <code>ims->rdc32.mpm[i] = mpm[i]</code> 逻辑，直接按 CU32 粒度提取并锁定了一组共享的 MPM。整个 CU32 内的子块强行复用这组冻结的 MPM，从而**彻底斩断了子块间互相等待 Intra 模式的流水线气泡**，实现了前端极致并发。
+    </div>
+    <hr style="margin: 40px 0; border-top: 1px dashed #ccc;">
+<h3>2.2 痛点解析二：CCLM 引发的最长色度挂起 (C-Model 未引入)</h3>
+    <div class="highlight" style="background-color: #e3f2fd; border-left-color: #1976d2;">
+        <strong>💡 什么是 CCLM (跨分量线性模型) 算法？</strong><br>
+        CCLM 是一种利用亮度 (Luma) 像素来预测色度 (Chroma) 像素的算法。它假设亮度和色度在同一个块内存在线性关系 (Chroma = α × Luma + β)。编码器通过对相邻的亮度重建像素和色度重建像素进行下采样和线性拟合，计算出参数 α 和 β，然后直接代入当前块的亮度重建像素求出色度预测值。
+        
+        <div class="mermaid">
+        flowchart LR
+            LumaRecon["亮度重建像素"] --> Downsample["下采样操作"]
+            Neighbor["相邻重建像素求 α 和 β"] --> LinearModel
+            Downsample --> LinearModel["线性拟合模型 <br> Chroma = α×L + β"]
+            LinearModel --> ChromaPred["生成: 色度预测块"]
+            
+            style LumaRecon fill:#f5f5f5,stroke:#999
+            style Neighbor fill:#f5f5f5,stroke:#999
+            style LinearModel fill:#e1f5fe,stroke:#0288d1
+            style ChromaPred fill:#fff3e0,stroke:#f57c00
+        </div>
+        <div class="diagram-caption" style="margin-bottom: 0;">图 5：CCLM 算法的跨分量预测模型</div>
+        <div style="margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0288d1; border-radius: 4px; color: #333; font-size: 0.95em;">
+            <strong style="color: #0288d1; display: block; margin-bottom: 10px;">📝 中文算法推导步骤 (CCLM 跨分量预测)</strong>
+            <ol style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 5px;"><strong>模型求解：</strong>提取相邻块的亮度重建像素和色度重建像素，通过线性回归计算出跨分量比例系数 α (Alpha) 和偏移量 β (Beta)。</li>
+                <li style="margin-bottom: 5px;"><strong>致命死锁：</strong>当前块的色度预测被强行挂起，<strong>必须死等</strong>当前块的亮度分支跑完一整圈 (预测 -> 变换 -> 量化 -> 反量化 -> 反变换 -> 重建) 拿到最终的“亮度重建像素”。</li>
+                <li style="margin-bottom: 5px;"><strong>下采样适配：</strong>由于色度分辨率通常只有亮度的一半 (YUV420)，需要对刚拿到的亮度重建像素进行 2:1 下采样。</li>
+                <li><strong>代入计算：</strong>执行线性方程 <code>色度预测 = α × 亮度下采样像素 + β</code>，输出最终的色度预测块。</li>
+            </ol>
+        </div>
+    </div>
+    <p><strong>硬件流水线瓶颈：</strong> VVC 的 CCLM (跨分量线性模型) 要求色度的预测像素直接通过公式从亮度的重建像素 (Recon) 算出来。色度必须等亮度走完 T/Q/IQ/IT 拿到真实 Recon 后才能开始 Pred，极其阻塞流水线。</p>
+    <div class="success">
+        <strong>我们的 C-Model 做法 (原生规避)：</strong><br>
+        由于我们目前的架构主体依然是沿袭 HEVC 体系（部分融入优质工具），C-Model 中**并未引入 CCLM 这一宽带与流水线杀手特性**。这使得亮度和色度依然可以在拿到模式后，分别独立地进行后续计算，从算法源头上避开了这条最长的色度阻塞路径。
+    </div>
+    <hr style="margin: 40px 0; border-top: 1px dashed #ccc;">
+
+    <h3>2.3 痛点解析三：极小尺寸块的密集反馈噩梦 (ISP 已被 C-Model 舍弃)</h3>
+    <div class="highlight" style="background-color: #e3f2fd; border-left-color: #1976d2;">
+        <strong>💡 什么是 ISP (Intra Sub-Partitions) 算法？</strong><br>
+        ISP 允许将一个常规的亮度预测块 (如 8x8) 沿水平或垂直方向强制切分为多个子块 (如四个 8x2 或 2x8)。最致命的是，这些子块在 CU 内部必须进行首尾相接的串行预测和重建：前一个子块的重建像素，必须立刻作为下一个子块的参考像素。
+        
+        <div class="mermaid">
+        flowchart LR
+            subgraph ISP_Flow ["ISP 内部串行依赖流"]
+                direction LR
+                Sub0["子块 0 重建"] --> Sub1["子块 1 预测/重建"]
+                Sub1 --> Sub2["子块 2 预测/重建"]
+                Sub2 --> Sub3["子块 3 预测/重建"]
+            end
+            
+            style Sub0 fill:#e1f5fe,stroke:#0288d1
+            style Sub1 fill:#fff3e0,stroke:#f57c00
+            style Sub2 fill:#fff3e0,stroke:#f57c00
+            style Sub3 fill:#fff3e0,stroke:#f57c00
+        </div>
+        <div class="diagram-caption" style="margin-bottom: 0;">图 6：ISP 算法内部的首尾串行依赖模型</div>
+        <div style="margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0288d1; border-radius: 4px; color: #333; font-size: 0.95em;">
+            <strong style="color: #0288d1; display: block; margin-bottom: 10px;">📝 中文算法推导步骤 (ISP 帧内子划分)</strong>
+            <ol style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 5px;"><strong>切分准备：</strong>获取当前 CU 块外部的原始参考像素，并将当前块强制横向或纵向切分为 2 到 4 个极小的条带形子块 (如 8x2)。</li>
+                <li style="margin-bottom: 5px;"><strong>首尾串行地狱：</strong>对每一个子块执行严格的顺序遍历：
+                    <ul style="margin: 5px 0 0 0; padding-left: 20px; list-style-type: circle;">
+                        <li style="margin-bottom: 5px;">第 N 个子块利用当前的参考像素进行预测，并立刻执行完整的 RDO 重建。</li>
+                        <li><strong>核心卡点：</strong>将第 N 个子块刚刚出炉的重建像素，<strong>立刻原地更新</strong>为第 N+1 个子块的边界参考像素。</li>
+                    </ul>
+                </li>
+                <li><strong>循环结束：</strong>直至最后一个子块跑完重建，整个 CU 块的 ISP 流程才算走完。</li>
+            </ol>
+        </div>
+    </div>
+    <p><strong>硬件流水线瓶颈：</strong> 连续的一堆 4x4 小块会导致极高频的串行反馈；而 VVC 的 ISP (帧内子划分) 会在一个 CU 内部再切分且首尾串行依赖，导致流水线深度崩溃。</p>
+    <div class="success">
+        <strong>我们的 C-Model 做法 (化繁为简)：</strong><br>
+        代码中明确标识了 <code>//ISP not in</code>，我们果断**舍弃了 ISP 这种导致强串行的算法**。对于标准的 4x4 块，我们的架构依靠强大的 MD 并发（原图粗选）掩盖了前期的搜索时间，并且 RDO 阶段只针对 Top-N（极少的候选数量）进行精确计算，将 4x4 带来的串行气泡时长压缩到了硬件可接受的极限。
+    </div>
+    <hr style="margin: 40px 0; border-top: 1px dashed #ccc;">
+
+    <h3>2.4 痛点解析四：多参考行 (MRL) 引发的 SRAM 带宽剧增 (C-Model 已禁用)</h3>
+    <div class="highlight" style="background-color: #e3f2fd; border-left-color: #1976d2;">
+        <strong>💡 什么是 MRL (Multiple Reference Line) 算法？</strong><br>
+        传统的帧内预测只允许使用紧挨着当前块最外面的一行/一列相邻像素作为参考。而 MRL 算法打破了这个限制，允许预测器跳过第一行，去拾取外围第 2 行或第 3 行的重建像素进行方向投影预测，以此来捕捉更远距离的纹理趋势。
+        
+        <div class="mermaid">
+        flowchart LR
+            Line1["参考行 1 (相邻)"] --> Mux["MRL 行选择器"]
+            Line2["参考行 2 (较远)"] --> Mux
+            Line3["参考行 3 (最远)"] --> Mux
+            Mux --> Pred["执行角度投影预测"]
+            
+            style Line1 fill:#f5f5f5,stroke:#999
+            style Line2 fill:#f5f5f5,stroke:#999
+            style Line3 fill:#f5f5f5,stroke:#999
+            style Mux fill:#e1f5fe,stroke:#0288d1
+            style Pred fill:#fff3e0,stroke:#f57c00
+        </div>
+        <div class="diagram-caption" style="margin-bottom: 0;">图 7：MRL 算法的多参考行提取模型</div>
+        <div style="margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-left: 4px solid #0288d1; border-radius: 4px; color: #333; font-size: 0.95em;">
+            <strong style="color: #0288d1; display: block; margin-bottom: 10px;">📝 中文算法推导步骤 (MRL 多参考行)</strong>
+            <ol style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 5px;"><strong>提取指令：</strong>接收编码器发出的 MRL 层级索引 (mrl_idx)，指示需要使用外围第几圈的参考像素。</li>
+                <li style="margin-bottom: 5px;"><strong>带宽洪峰：</strong>跳过传统的第 1 行紧贴像素，通过多路复用器向片上 SRAM 发起<strong>跳跃式地址越界读取</strong>，强行拉取更远的第 2 行 或第 3 行的海量重建像素。</li>
+                <li><strong>执行投影：</strong>利用取回的远端参考行像素，结合指定的角度模式 (Angle Mode) 执行传统的帧内方向性投影，生成预测块。</li>
+            </ol>
+        </div>
+    </div>
+    <p><strong>硬件流水线瓶颈：</strong> 常规 Intra 只取外圈 1 行 1 列像素，但 VVC 的 MRL 允许使用外圈 3 行内的重建像素，导致 SRAM 读带宽需求成倍暴增，且连线极其复杂。</p>
+    <div class="success">
+        <strong>我们的 C-Model 做法 (克制引入)：</strong><br>
+        基于 PPA（面积与功耗）的极致权衡，当前的 C-Model 并未开启或引入 MRL。SRAM 只需要老老实实地缓存紧贴着边界的一行一列像素。这保证了线管系统（Line Buffer）的极简设计和可预测的超低内存带宽。
+    </div>
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+<h2>3. MD（模式粗选）与 RDO（精细优化）的彻底解耦设计</h2>
+    <p>这是硬件编码器实现极速并行计算的最核心架构优化。为了打破“当前 CU 预测必须等待前一个 CU 重建完毕”的空间串行死锁，硬件设计采用了**两阶段选拔制**。</p>
+    
+    <div class="mermaid">
+    sequenceDiagram
+        participant Orig as 原始图像 (Orig Data)
+        participant MD as 模式粗选 (Rough MD)
+        participant Recon as 重建缓冲 (Recon Data)
+        participant RDO as 率失真优化 (RDO)
+        
+        Note over Orig,MD: 阶段一：打破依赖，高并发粗选
+        Orig->>MD: 读取相邻原始像素 (USING_INPUT)
+        MD->>MD: 针对所有候选模式快速计算 SAD/SATD
+        MD->>RDO: 输出 Top-N 候选模式
+        
+        Note over Recon,RDO: 阶段二：串行等待，真实重建精选
+        Recon->>RDO: 等待左/上方真实完工，读取重建像素 (USING_RECON)
+        RDO->>RDO: 针对 Top-N 模式，执行真实预测、DCT、量化
+        RDO->>RDO: 计算准确的 RD Cost (Rate + Distortion)
+        RDO-->>Recon: 敲定最终 Best Mode，生成当前块重建像素并回写
+    </div>
+    <div class="diagram-caption">图 2：MD 模式粗选与 RDO 精细优化的彻底解耦时序图</div>
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+<h2>4. 空间依赖瓶颈的突破与编解码一致性</h2>
+    <div class="critical-alert">
+        <strong>Drift-Free 核心解耦点：</strong> MD 阶段编码器“作弊”<span style="background: #fecaca; padding: 2px 6px; border-radius: 4px; color: #991b1b; font-weight: 700;">使用无损的【原始像素】替代【重建像素】</span>去完成流水线依赖的彻底解耦与高速并发粗选！但在决定最终码流内容的 RDO 阶段，必须老老实实切回与解码端相同的重建像素，确保编解码一致性。
+    </div>
+
+    
+    <!-- 纯 HTML/CSS 原生渲染架构对比图，彻底告别 Mermaid 语法解析错误 -->
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin: 30px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+        
+        <!-- 理论全串行 -->
+        <div style="margin-bottom: 40px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; border-radius: 50%;"></span>
+                <span style="font-size: 15px; font-weight: 700; color: #334155;">理论全串行 (极慢)</span>
+            </div>
+            
+            <!-- Timeline Container -->
+            <div style="position: relative; display: flex; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; height: 50px; overflow: hidden;">
+                <div style="width: 33.33%; background: #fee2e2; border-right: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #991b1b; transition: all 0.3s; cursor: pointer;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">CU 0 (粗选 + 真实重建)</div>
+                <div style="width: 33.33%; background: #ffedd5; border-right: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #9a3412; transition: all 0.3s; cursor: pointer;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">CU 1 (粗选 + 真实重建)</div>
+                <div style="width: 33.33%; background: #fef9c3; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #854d0e; transition: all 0.3s; cursor: pointer;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">CU 2 (粗选 + 真实重建)</div>
+            </div>
+        </div>
+
+        <!-- 实际硬件解耦模型 -->
+        <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <span style="display: inline-block; width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></span>
+                <span style="font-size: 15px; font-weight: 700; color: #334155;">实际硬件模型 (高并发模式粗选 + RDO 重建流水线解耦)</span>
+            </div>
+            
+            <div style="position: relative; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 20px;">
+                <!-- 阶段 1: 兵分多路的并发 MD -->
+                <div style="display: flex; gap: 10px; width: 40%; margin-bottom: 15px;">
+                    <div style="flex: 1; height: 45px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">CU 0 粗选</div>
+                    <div style="flex: 1; height: 45px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">CU 1 粗选</div>
+                    <div style="flex: 1; height: 45px; background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #0369a1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">CU 2 粗选</div>
+                </div>
+                
+                <!-- 连接提示 -->
+                <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 15px;">
+                    <div style="background: #f1f5f9; padding: 6px 16px; border-radius: 20px; font-size: 12px; color: #475569; font-weight: 500; border: 1px solid #e2e8f0;">
+                        ⬇️ 仅输出 Top-N 候选喂给后级，前级立即释放 ⬇️
+                    </div>
+                </div>
+                
+                <!-- 阶段 2: 严格依赖重建像素的串行 RDO -->
+                <div style="display: flex; width: 100%; justify-content: flex-end;">
+                    <div style="display: flex; width: 60%; border-radius: 6px; overflow: hidden; height: 45px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        <div style="flex: 1; background: #dcfce7; border-right: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #166534;">CU 0 真实 RDO</div>
+                        <div style="flex: 1; background: #bbf7d0; border-right: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #166534;">CU 1 真实 RDO</div>
+                        <div style="flex: 1; background: #86efac; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #166534;">CU 2 真实 RDO</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="diagram-caption">图 3：理论全串行与实际 MD/RDO 硬件解耦流水线对比</div>
+<hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+
+    <h2>5. IPD 与 RDO 的核心计算环路 (Calculation Loop)</h2>
+    <p>在硬件视频编码器中，候选模式的精细评估并非一蹴而就，而是需要在一个紧密耦合的反馈环路中运行。这个环路由 <strong>IPD (Intra Prediction Datapath / 帧内预测数据通路)</strong> 与 <strong>RDO (Rate-Distortion Optimization / 率失真优化)</strong> 模块共同构成。</p>
+    
+    <div class="highlight" style="background-color: #f3e5f5; border-left-color: var(--primary);">
+        <strong>💡 为什么需要这个环路？</strong><br>
+        因为我们不能只看预测出来的像素好不好，我们还必须考虑“要把这些残差和模式信息写入码流，需要消耗多少比特 (Rate)”，以及“经过量化和反量化这种有损压缩后，最终用户看到的画面失真到底有多大 (Distortion)”。这就需要完整地模拟一遍编码和解码的过程。
+    </div>
+
+    <div class="diagram-container" style="margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px; text-align: center;">
+        <img src="assets/diagram_8.svg" alt="IPD 与 RDO 核心计算环路" style="max-width: 100%; height: auto; display: inline-block;">
+    </div>
+    <div class="diagram-caption">图 8：IPD 与 RDO 的完整率失真反馈计算环路</div>
+    
+    <div style="margin-top: 20px; background-color: #f8f9fa; padding: 15px; border-left: 4px solid var(--primary); border-radius: 4px; color: #333; font-size: 0.95em;">
+        <strong style="color: var(--primary); display: block; margin-bottom: 10px;">📝 中文算法推导步骤 (IPD & RDO 环路运转)</strong>
+        <ol style="margin: 0; padding-left: 20px;">
+            <li style="margin-bottom: 5px;"><strong>预测生成 (IPD)：</strong>根据当前测试的 Intra 模式和周围已重建的参考像素，进行空间投影，生成当前块的预测像素 (Predictor)。</li>
+            <li style="margin-bottom: 5px;"><strong>求残差与 T/Q：</strong>将原始像素减去预测像素得到残差，送入二维 DCT 变换矩阵 (T) 和量化器 (Q)，得到离散的量化系数。</li>
+            <li style="margin-bottom: 5px;"><strong>分流评估：</strong>
+                <ul style="margin: 5px 0 0 0; padding-left: 20px; list-style-type: circle;">
+                    <li style="margin-bottom: 5px;"><strong>分支一 (Rate)：</strong>量化系数送入熵编码器 (CABAC) 模型，预估消耗的比特数 R。</li>
+                    <li><strong>分支二 (Recon)：</strong>量化系数立刻进行反量化 (IQ) 和反变换 (IT)，将有损残差加回预测像素，得到真正解码端可见的“重建像素 (Recon)”。</li>
+                </ul>
+            </li>
+            <li style="margin-bottom: 5px;"><strong>失真计算：</strong>将“重建像素”与“原始像素”求差平方和 (SSE) 或绝对误差和 (SAD)，得到失真度 D。</li>
+            <li><strong>最终决策：</strong>通过拉格朗日乘子公式 <code>Cost = D + λ * R</code> 计算出该模式的最终代价。循环测试多个模式后，Cost 最小的胜出！</li>
+        </ol>
+    </div>
+
+    <hr style="margin: 50px 0; border: 1px solid #e0e0e0;">
+    <h2>6. 超大块 (CU64) 与 MTT 架构的局部降维决策策略</h2>
+    <p>在硬件实现中，为了极致压缩评估时间和计算功耗，对于超过最大硬件支持尺寸（如 32x32）的超大块或 MTT（多类型树）划分，我们采用了<strong>局部降维模式选拔 (Mode PK)</strong> 策略。其核心思想是：<strong>用最具代表性的局部区域的 PK 结果，来决定整个超大块的全局最佳预测模式。</strong></p>
+
+    <div class="highlight" style="background-color: #e8f5e9; border-left-color: #2e7d32;">
+        <strong style="color: #2e7d32;">💡 硬件重构策略 (涵盖亮度与色度)：</strong>
+        <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+            <li style="margin-bottom: 8px;"><strong>对于完整的 64x64 CU：</strong> 仅提取其<strong>左上角的 32x32 亮度区域</strong>参与详尽的 Mode PK (代价计算评估)。该局部区域胜出的 Best Luma Pred Mode，将直接被采纳为整个 64x64 CU 的最佳亮度预测模式。</li>
+            <li style="margin-bottom: 8px;"><strong>色度 (Chroma) 的对应降维：</strong> 在 4:2:0 采样下，64x64 亮度块对应 32x32 的色度块。由于硬件支持的<strong>最大色度 TU 变换核为 16x16</strong>，因此降维策略保持高度一致：仅对<strong>左上角的 16x16 色度区域</strong>进行 Mode PK，选出的最佳模式直接复用给该 CU 对应的其余三个 16x16 色度区域。</li>
+            <li><strong>对于尺寸超限的 MTT 块 (含 BT 与 TT)：</strong> 选用靠近已重建参考像素一侧的局部区域。无论是二叉树 (BT) 产生的 <strong>64x32 / 32x64</strong> 块，还是三叉树 (TT) 产生的 <strong>64x16 / 16x64</strong> 侧边块，只要有一边超过 32，就沿着超限边截取靠左或靠上的 32 尺寸区域。具体来说，宽块截取<strong>左侧 32 长度</strong>，高块截取<strong>上方 32 长度</strong>进行 Mode PK。选出的模式直接应用于整个 MTT 块及其对应的色度子区域。</li>
+        </ul>
+    </div>
+
+        <h3 style="margin-top: 40px; color: #1e293b; border-left: 4px solid #3b82f6; padding-left: 10px;">Luma (亮度) 局部 PK 策略图解 (在一个 64x64 整体内展示)</h3>
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; justify-content: space-around; flex-wrap: wrap; gap: 40px;">
+        
+        <!-- 1. 完整 64x64 -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">无切分 (Full 64x64)</div>
+            <div style="position: relative; width: 160px; height: 160px; background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 8px; display: flex; flex-wrap: wrap; overflow: hidden;">
+                <div style="box-sizing: border-box; width: 50%; height: 50%; background: #dcfce7; border-right: 1px dashed #cbd5e1; border-bottom: 1px dashed #cbd5e1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span>
+                </div>
+                <div style="box-sizing: border-box; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                <div style="box-sizing: border-box; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                <div style="box-sizing: border-box; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+            </div>
+            <div class="diagram-caption" style="margin-top: 15px; margin-bottom: 0;">左上角 PK，其余复用</div>
+        </div>
+
+        <!-- 2. BT HOR & VER -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">二叉树水平 (BT HOR)</div>
+                <div style="position: relative; width: 160px; height: 160px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
+                    <!-- 上 64x32 -->
+                    <div style="width: 100%; height: 50%; border-bottom: 2px solid #64748b; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #dcfce7; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 下 64x32 -->
+                    <div style="width: 100%; height: 50%; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #dcfce7; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">二叉树垂直 (BT VER)</div>
+                <div style="position: relative; width: 160px; height: 160px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; overflow: hidden;">
+                    <!-- 左 32x64 -->
+                    <div style="width: 50%; height: 100%; border-right: 2px solid #64748b; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #dcfce7; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 右 32x64 -->
+                    <div style="width: 50%; height: 100%; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #dcfce7; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. TT HOR & VER -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">三叉树水平 (TT HOR)</div>
+                <div style="position: relative; width: 160px; height: 160px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
+                    <!-- 上 64x16 -->
+                    <div style="width: 100%; height: 25%; border-bottom: 2px solid #64748b; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #dcfce7; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 9px; font-weight: bold; color: #166534;">PK 32x16</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 中 64x32 -->
+                    <div style="width: 100%; height: 50%; border-bottom: 2px solid #64748b; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #dcfce7; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 下 64x16 -->
+                    <div style="width: 100%; height: 25%; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #dcfce7; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 9px; font-weight: bold; color: #166534;">PK 32x16</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">三叉树垂直 (TT VER)</div>
+                <div style="position: relative; width: 160px; height: 160px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; overflow: hidden;">
+                    <!-- 左 16x64 -->
+                    <div style="width: 25%; height: 100%; border-right: 2px solid #64748b; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #dcfce7; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; text-align: center;"><span style="font-size: 9px; font-weight: bold; color: #166534; line-height: 1;">PK<br>16x32</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 中 32x64 -->
+                    <div style="width: 50%; height: 100%; border-right: 2px solid #64748b; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #dcfce7; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 11px; font-weight: bold; color: #166534;">PK 32x32</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 右 16x64 -->
+                    <div style="width: 25%; height: 100%; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #dcfce7; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; text-align: center;"><span style="font-size: 9px; font-weight: bold; color: #166534; line-height: 1;">PK<br>16x32</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <h3 style="margin-top: 40px; color: #1e293b; border-left: 4px solid #8b5cf6; padding-left: 10px;">Chroma (色度) 降维 PK 策略图解 (在一个 32x32 色度整体内展示, 4:2:0)</h3>
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin: 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.02); display: flex; justify-content: space-around; flex-wrap: wrap; gap: 40px;">
+        
+        <!-- 1. 完整 32x32 色度 -->
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">无切分 (Full 32x32 色度)</div>
+            <div style="position: relative; width: 120px; height: 120px; background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 8px; display: flex; flex-wrap: wrap; overflow: hidden;">
+                <div style="box-sizing: border-box; width: 50%; height: 50%; background: #f3e8ff; border-right: 1px dashed #cbd5e1; border-bottom: 1px dashed #cbd5e1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span>
+                </div>
+                <div style="box-sizing: border-box; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                <div style="box-sizing: border-box; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                <div style="box-sizing: border-box; width: 50%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+            </div>
+            <div class="diagram-caption" style="margin-top: 15px; margin-bottom: 0;">左上角 PK，其余复用</div>
+        </div>
+
+        <!-- 2. BT HOR & VER 色度 -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">二叉树水平 (BT HOR)</div>
+                <div style="position: relative; width: 120px; height: 120px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
+                    <!-- 上 32x16 -->
+                    <div style="width: 100%; height: 50%; border-bottom: 2px solid #64748b; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #f3e8ff; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 下 32x16 -->
+                    <div style="width: 100%; height: 50%; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #f3e8ff; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">二叉树垂直 (BT VER)</div>
+                <div style="position: relative; width: 120px; height: 120px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; overflow: hidden;">
+                    <!-- 左 16x32 -->
+                    <div style="width: 50%; height: 100%; border-right: 2px solid #64748b; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #f3e8ff; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 右 16x32 -->
+                    <div style="width: 50%; height: 100%; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #f3e8ff; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. TT HOR & VER 色度 -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 30px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">三叉树水平 (TT HOR)</div>
+                <div style="position: relative; width: 120px; height: 120px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden;">
+                    <!-- 上 32x8 -->
+                    <div style="width: 100%; height: 25%; border-bottom: 2px solid #64748b; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #f3e8ff; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 8px; font-weight: bold; color: #581c87;">PK 16x8</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 中 32x16 -->
+                    <div style="width: 100%; height: 50%; border-bottom: 2px solid #64748b; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #f3e8ff; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 下 32x8 -->
+                    <div style="width: 100%; height: 25%; display: flex;">
+                        <div style="width: 50%; height: 100%; background: #f3e8ff; border-right: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 8px; font-weight: bold; color: #581c87;">PK 16x8</span></div>
+                        <div style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <div style="font-weight: 600; color: #334155; margin-bottom: 15px;">三叉树垂直 (TT VER)</div>
+                <div style="position: relative; width: 120px; height: 120px; background: #f8fafc; border: 2px solid #64748b; border-radius: 8px; display: flex; overflow: hidden;">
+                    <!-- 左 8x32 -->
+                    <div style="width: 25%; height: 100%; border-right: 2px solid #64748b; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #f3e8ff; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; text-align: center;"><span style="font-size: 8px; font-weight: bold; color: #581c87; line-height: 1;">PK<br>8x16</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 中 16x32 -->
+                    <div style="width: 50%; height: 100%; border-right: 2px solid #64748b; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #f3e8ff; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;"><span style="font-size: 10px; font-weight: bold; color: #581c87;">PK 16x16</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                    <!-- 右 8x32 -->
+                    <div style="width: 25%; height: 100%; display: flex; flex-direction: column;">
+                        <div style="width: 100%; height: 50%; background: #f3e8ff; border-bottom: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; text-align: center;"><span style="font-size: 8px; font-weight: bold; color: #581c87; line-height: 1;">PK<br>8x16</span></div>
+                        <div style="width: 100%; height: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; font-style: italic;">复用</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tocList = document.getElementById('toc-list');
+        const topNav = document.getElementById('top-nav');
+        const headers = document.querySelectorAll('.container h2:not(.toc-title), .container h3');
+        const mainContent = document.getElementById('main-content');
+        
+        headers.forEach((header, index) => {
+            const id = 'section-' + index;
+            header.id = id;
+            
+            // 1. Generate Sidebar TOC
+            const li = document.createElement('li');
+            li.className = header.tagName === 'H2' ? 'level-2' : 'level-3';
+            
+            const a = document.createElement('a');
+            a.href = '#' + id;
+            a.textContent = header.textContent;
+            
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const target = document.getElementById(id);
+                mainContent.scrollTo({
+                    top: target.offsetTop - 40,
+                    behavior: 'smooth'
+                });
+            });
+            
+            li.appendChild(a);
+            tocList.appendChild(li);
+
+            // 2. Generate Top Nav (Only for H2)
+            if (header.tagName === 'H2' && topNav) {
+                const topA = document.createElement('a');
+                topA.href = '#' + id;
+                topA.className = 'top-nav-link';
+                // Extract chapter title (e.g. "1. 帧内预测的高阶架构瓶颈...")
+                topA.textContent = header.textContent;
+                topA.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const target = document.getElementById(id);
+                    mainContent.scrollTo({
+                        top: target.offsetTop - 40,
+                        behavior: 'smooth'
+                    });
+                });
+                topNav.appendChild(topA);
+            }
+        });
+        
+        mainContent.addEventListener('scroll', () => {
+            let currentId = '';
+            let currentH2Id = '';
+            headers.forEach(header => {
+                if (mainContent.scrollTop >= header.offsetTop - 100) {
+                    currentId = header.id;
+                    if (header.tagName === 'H2') {
+                        currentH2Id = header.id;
+                    }
+                }
+            });
+            
+            if (currentId) {
+                document.querySelectorAll('.sidebar a').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentId) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+
+            // Sync Top Nav Active State
+            if (currentH2Id) {
+                document.querySelectorAll('.top-nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentH2Id) {
+                        link.classList.add('active');
+                    }
+                });
+            } else if (currentId) {
+                // If we are at an H3 before the first H2 (shouldn't happen but just in case)
+                // Find the parent H2 id
+                let foundH2 = '';
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i].id === currentId) {
+                        for (let j = i; j >= 0; j--) {
+                            if (headers[j].tagName === 'H2') {
+                                foundH2 = headers[j].id;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+                if (foundH2) {
+                    document.querySelectorAll('.top-nav-link').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + foundH2) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            }
+        });
+        
+        if(tocList.firstChild) {
+            tocList.firstChild.querySelector('a').classList.add('active');
+        }
+        if(topNav && topNav.firstChild) {
+            topNav.firstChild.classList.add('active');
+        }
+    });
+</script>
+</body>
+</html>
