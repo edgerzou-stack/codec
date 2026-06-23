@@ -7,21 +7,19 @@ Welcome to the **Video Codec Ultimate Dashboard Monorepo**. This unified knowled
 
 All documentation is generated and hosted statically via GitHub Pages, ensuring an interactive, highly readable, and zero-drag "Geek Dashboard" experience.
 
-## 📖 Module Directory (Live Dashboards)
+## 📖 Module Directory
 
-You can directly access the interactive online documentation for each subsystem via the following links:
+You can directly access the documentation for each subsystem via the following links:
 
-| Module | Subsystem | Live Dashboard Link | Target Audience |
-|---|---|---|---|
-| 🎛️ [**Rate Control**](./rate_control/README.md) | Rate Control & Virtual Buffer | [Launch Dashboard](https://edgerzou-stack.github.io/codec/rate_control/html/rate_control_dashboard.html) | System Architects, Firmware |
-| 🧮 [**RDO**](./rdo/README.md) | Transform Core & RDOQ Optimization | [Launch Dashboard](https://edgerzou-stack.github.io/codec/rdo/html/index.html) | RDO Architects, RTL Designers |
-| 📦 [**CABAC**](./cabac/README.md) | HEVC/VVC Entropy Encoding | [Launch Dashboard](https://edgerzou-stack.github.io/codec/cabac/index.html) | Algorithm Engineers, RTL |
-| 🔍 [**Inter Pred**](./inter_pred/README.md) | Motion Estimation / Compensation | [Launch Dashboard](https://edgerzou-stack.github.io/codec/inter_pred/html/inter_prediction_architecture.html) | Core RTL, Verification |
-| 🔮 [**Intra Pred**](./intra_pred/README.md) | Spatial Prediction & Filtering | [Launch Dashboard](https://edgerzou-stack.github.io/codec/intra_pred/index.html) | Core RTL, Algorithm |
-| 🧹 [**Deblock**](./deblock/README.md) | Deblocking Filter (DBF) | [Launch Dashboard](https://edgerzou-stack.github.io/codec/deblock/cmodel_deblock_dashboard.html) | RTL Designers, Firmware |
-| 🎨 [**SAO**](./sao/README.md) | Sample Adaptive Offset | [Launch Dashboard](https://edgerzou-stack.github.io/codec/sao/cmodel_sao_dashboard.html) | RTL Designers |
-
-> **Note**: If a link fails to load immediately after deployment, please allow a few minutes for GitHub Pages to complete the build process.
+| Module | Subsystem | Target Audience |
+|---|---|---|
+| 🎛️ [**Rate Control**](./rate_control/README.md) | Rate Control & Virtual Buffer | System Architects, Firmware |
+| 🧮 [**RDO**](./rdo/README.md) | Transform Core & RDOQ Optimization | RDO Architects, RTL Designers |
+| 📦 [**CABAC**](./cabac/README.md) | HEVC/VVC Entropy Encoding | Algorithm Engineers, RTL |
+| 🔍 [**Inter Pred**](./inter_pred/README.md) | Motion Estimation / Compensation | Core RTL, Verification |
+| 🔮 [**Intra Pred**](./intra_pred/README.md) | Spatial Prediction & Filtering | Core RTL, Algorithm |
+| 🧹 [**Deblock**](./deblock/README.md) | Deblocking Filter (DBF) | RTL Designers, Firmware |
+| 🎨 [**SAO**](./sao/README.md) | Sample Adaptive Offset | RTL Designers |
 
 ## 🛠️ Monorepo Philosophy
 
