@@ -31,3 +31,12 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
 
 ---
 *Maintained by the Core Architecture Team.*
+
+### 🚀 2. [Inter RDO Architecture: Eradicating Step-Delay](https://edgerzou-stack.github.io/codec/inter_pred/html/inter_rdo_pipeline_optimization.html)
+- **Target Audience:** Hardware Architects, RTL Designers, Performance Engineers.
+- **Content:** A deep dive into the physical delay bottlenecks of Inter Fractional Interpolation and how to achieve concurrent RDO initialization.
+- **Highlights:**
+  - Analysis of Intra vs Inter physical delay differences.
+  - Row-level interleaving micro-architecture for time-multiplexed interpolation engines.
+  - Sync-Fire Pred Buffer for staggered delay isolation.
+  - Ultimate Data-Control path decoupling pipeline (Y-shape).

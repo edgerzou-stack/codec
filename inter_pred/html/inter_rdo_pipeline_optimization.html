@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inter RDO 架构优化：从串行插值到并发流水线</title>
+    <style>
+        :root {
+            --primary: #0288d1;
+            --secondary: #0277bd;
+            --accent: #ff6f00;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; background: var(--bg); }
+        .sidebar { width: 300px; background: white; border-right: 1px solid #e2e8f0; overflow-y: auto; padding: 30px; flex-shrink: 0; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .sidebar h2.toc-title { font-size: 14px; color: #94a3b8; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1px; margin-top: 0; }
+        .sidebar ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar li { margin-bottom: 8px; }
+        .sidebar a { color: #475569; text-decoration: none; display: block; padding: 8px 12px; border-radius: 6px; font-size: 14px; transition: all 0.2s; }
+        .sidebar a:hover { background: #f1f5f9; color: var(--primary); }
+        .sidebar a.active { background: #eff6ff; color: var(--primary); font-weight: 600; border-left: 3px solid var(--primary); }
+        .sidebar li.level-2 a { padding-left: 12px; }
+        .sidebar li.level-3 a { padding-left: 30px; font-size: 13px; color: #64748b; }
+        
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 40px; scroll-behavior: smooth; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--card-bg); padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+
+        h1 { color: var(--primary); text-align: center; border-bottom: 3px solid var(--secondary); padding-bottom: 15px; margin-bottom: 40px; }
+        h2 { color: var(--secondary); margin-top: 40px; border-left: 5px solid var(--secondary); padding-left: 15px; }
+        h3 { color: #555; }
+        
+        .highlight { background-color: #e3f2fd; border-left: 4px solid var(--secondary); padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        .success { background-color: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; }
+        
+        .diagram-caption { text-align: center; color: #7f8c8d; font-size: 0.9em; margin-top: -15px; margin-bottom: 30px; font-style: italic; }
+        
+        .top-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0; }
+        .top-nav-link { background: #f8fafc; color: var(--primary); padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .top-nav-link:hover { background: #e0f2fe; }
+        .top-nav-link.active { background: var(--primary); color: white; border-color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2 class="toc-title">目录导航</h2>
+    <ul id="toc-list"></ul>
+</div>
+<div class="main-content" id="main-content">
+<div class="container">
+    <div class="top-nav" id="top-nav"></div>
+    <h1>Inter RDO 架构优化：从串行插值到并发流水线<br><span style="font-size:0.6em; color:#7f8c8d;">Inter RDO Architecture: Eradicating Step-Delay</span></h1>
+
+    <!-- Overview -->
+    <p><strong>策略总览：</strong>本文档剖析了在视频硬件编码器中，为何 Inter 预测的 RDO (Rate Distortion Optimization) 流水线会产生随着 CU size 变大而导致的阶梯式延迟（Step-Delay）。在 <b>MEMD (Motion Estimation Mode Decision)</b> 已提前锁定所有候选 MV 的前提下，我们将重点探讨如何突破 <b>分数像素插值引擎（Fractional Interpolation）</b> 的 PPA 面积瓶颈，实现所有 CU Size 的 <code>dcost</code> (Distortion Cost) 近乎同时并发启动的终极流水线解耦方案。</p>
+
+    <h2>1. 核心架构痛点解析：阶梯式 Delay 的物理根源</h2>
+    <p>在设计高效的硬件 RDO 时，我们需要理解 Intra 与 Inter 产生数据的物理时序鸿沟。Intra 依赖本地短路生成，而 Inter 依赖外部总线访存（Fetch）与重型滤波计算。</p>
+
+    <div style="text-align: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <img src="../assets/diagram_1_delay.svg" style="max-width: 100%; height: auto;" alt="Intra vs Inter 延迟对比">
+    </div>
+    <div class="diagram-caption">图 1：Intra 与 Inter 在预测数据生成物理通路的根本差异</div>
+    
+    <h3>1.1 面积与吞吐的生死权衡：插值的串行复用</h3>
+    <p>在确认了 MEMD 已前置锁定各层级 MV 后，导致 <code>dcost</code> 无法并发的元凶是 <b>分数插值引擎的时分复用 (Time-Multiplexing)</b>。为严控 PPA，硬件通常只有一组乘加引擎，必须算完 1/2 像素，缓存，再算 1/4 像素。这产生了阶梯状的物理时序阻塞。</p>
+    
+    <div class="highlight">
+        <strong>⚠️ 核心痛点：由于引擎唯一，算完大块再算小块产生的“阶梯式时序塌陷”</strong><br>
+        硬件不可能为 1/2 和 1/4 各配备独立的巨大乘法树。引擎被单一任务锁定，直接粉碎了后续 RDO 同时起跑的规划。
+    </div>
+
+    <h2>2. 硬件架构破局策略：在 PPA 受限下的解法</h2>
+    
+    <h3>2.1 行级交织复用 (Row-level Interleaving)</h3>
+    <p>为了打破“算出整个大块 1/2 才去算 1/4”的巨大时序鸿沟，我们引入微观时间片复用策略（Time-Slicing）。</p>
+
+    <div style="margin: 30px 0; padding: 20px; background: #fafafa; border: 1px solid #eee; border-radius: 8px; overflow-x: auto;">
+        <div style="min-width: 600px;">
+            <div style="display: flex; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 5px; font-weight: bold; color: #555;">
+                <div style="width: 120px;">时钟拍数</div>
+                <div style="flex: 1; text-align: center;">T0 (偶数)</div>
+                <div style="flex: 1; text-align: center;">T1 (奇数)</div>
+                <div style="flex: 1; text-align: center;">T2 (偶数)</div>
+                <div style="flex: 1; text-align: center;">T3 (奇数)</div>
+            </div>
+            <div style="display: flex; margin-bottom: 10px; align-items: center;">
+                <div style="width: 120px; font-weight: bold; color: #0288d1;">插值引擎动作</div>
+                <div style="flex: 1; background: #e1f5fe; padding: 10px; margin: 0 5px; border-radius: 4px; text-align: center; border-left: 4px solid #0288d1; font-size: 13px;">算第0行 1/2</div>
+                <div style="flex: 1; background: #fff3e0; padding: 10px; margin: 0 5px; border-radius: 4px; text-align: center; border-left: 4px solid #f57c00; font-size: 13px;">算第0行 1/4</div>
+                <div style="flex: 1; background: #e1f5fe; padding: 10px; margin: 0 5px; border-radius: 4px; text-align: center; border-left: 4px solid #0288d1; font-size: 13px;">算第1行 1/2</div>
+                <div style="flex: 1; background: #fff3e0; padding: 10px; margin: 0 5px; border-radius: 4px; text-align: center; border-left: 4px solid #f57c00; font-size: 13px;">算第1行 1/4</div>
+            </div>
+            <div style="display: flex; margin-bottom: 10px; align-items: center;">
+                <div style="width: 120px; font-weight: bold; color: #2e7d32;">Line Buffer</div>
+                <div style="flex: 1; text-align: center; font-size: 13px; color: #666;">写入第0行 1/2</div>
+                <div style="flex: 1; text-align: center; font-size: 13px; color: #666;">读出第0行 1/2</div>
+                <div style="flex: 1; text-align: center; font-size: 13px; color: #666;">写入第1行 1/2</div>
+                <div style="flex: 1; text-align: center; font-size: 13px; color: #666;">读出第1行 1/2</div>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <div style="width: 120px; font-weight: bold; color: #c2185b;">产出数据</div>
+                <div style="flex: 1;"></div>
+                <div style="flex: 1; background: #e8f5e9; padding: 5px; margin: 0 5px; border-radius: 4px; text-align: center; color: #2e7d32; font-weight: bold; font-size: 13px;">第0行完工就绪</div>
+                <div style="flex: 1;"></div>
+                <div style="flex: 1; background: #e8f5e9; padding: 5px; margin: 0 5px; border-radius: 4px; text-align: center; color: #2e7d32; font-weight: bold; font-size: 13px;">第1行完工就绪</div>
+            </div>
+        </div>
+    </div>
+    <div class="diagram-caption">图 2：CSS Native绘制的行级交织复用微观时序图（消除块级阶梯等待）</div>
+
+    <div class="success">
+        <strong>✅ 架构突破点：</strong><br>
+        依靠插入几个极低代价的 Line Buffer，使得 1/4 像素紧随 1/2 像素后一拍被吐出。将原本上百拍的“块级阻塞”压缩为只有几拍波动的“微小锯齿”。
+    </div>
+
+    <h3>2.2 预测缓冲池隔离机制 (Pred Buffer Sync-Fire)</h3>
+    <p>无论如何交织，数据产出仍有先后。为了让 RDO 数据路径（Data Path）实现宏观上的“所有 CU Size 齐头并进”，我们必须将时间差异隔绝在 RDO 之外。</p>
+
+    <div style="text-align: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <img src="../assets/diagram_3_buffer.svg" style="max-width: 100%; height: auto;" alt="Sync-Fire缓冲池">
+    </div>
+    <div class="diagram-caption">图 3：Sync-Fire 缓冲池隔绝串行延迟示意图</div>
+
+    <h3>2.3 终极愿景：数据与控制流极致解耦 (Data-Control Decoupling)</h3>
+    <p>结合 MEMD 的前置预选，我们最终构建出一个近乎完美的解耦架构。物理计算（像素插值）走快车道，语法计算（CABAC）走慢车道。</p>
+
+    <div style="text-align: center; margin: 30px 0; background: #fafafa; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <img src="../assets/diagram_4_decoupling.svg" style="max-width: 100%; height: auto;" alt="数据控制解耦">
+    </div>
+    <div class="diagram-caption">图 4：终极数据/控制解耦的 Y 型汇聚流水线</div>
+
+    <p>在这个架构中，高速数据流利用 <b>行交织</b> 榨干插值引擎效率，利用 <b>缓冲池齐发</b> 让 RDO 算盘全开。当漫长的 <code>dcost</code> 算完时，慢速车道计算的 <code>rcost</code> 刚好赶到，顺畅无阻地完成所有 CU 的判决。</p>
+
+</div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tocList = document.getElementById('toc-list');
+        const topNav = document.getElementById('top-nav');
+        const headers = document.querySelectorAll('.container h2:not(.toc-title), .container h3');
+        const mainContent = document.getElementById('main-content');
+        
+        headers.forEach((header, index) => {
+            const id = 'section-' + index;
+            header.id = id;
+            
+            const li = document.createElement('li');
+            li.className = header.tagName === 'H2' ? 'level-2' : 'level-3';
+            const a = document.createElement('a');
+            a.href = '#' + id;
+            a.textContent = header.textContent;
+            
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+                // Fallback for container scroll alignment
+                mainContent.scrollTo({ top: document.getElementById(id).offsetTop - 40, behavior: 'smooth' });
+            });
+            
+            li.appendChild(a);
+            tocList.appendChild(li);
+
+            if (header.tagName === 'H2' && topNav) {
+                const topA = document.createElement('a');
+                topA.href = '#' + id;
+                topA.className = 'top-nav-link';
+                topA.textContent = header.textContent;
+                topA.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    mainContent.scrollTo({ top: document.getElementById(id).offsetTop - 40, behavior: 'smooth' });
+                });
+                topNav.appendChild(topA);
+            }
+        });
+        
+        mainContent.addEventListener('scroll', () => {
+            let currentId = '';
+            let currentH2Id = '';
+            headers.forEach(header => {
+                if (mainContent.scrollTop >= header.offsetTop - 100) {
+                    currentId = header.id;
+                    if (header.tagName === 'H2') currentH2Id = header.id;
+                }
+            });
+            
+            if (currentId) {
+                document.querySelectorAll('.sidebar a').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentId) link.classList.add('active');
+                });
+            }
+            if (currentH2Id) {
+                document.querySelectorAll('.top-nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + currentH2Id) link.classList.add('active');
+                });
+            } else if (currentId) {
+                let foundH2 = '';
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i].id === currentId) {
+                        for (let j = i; j >= 0; j--) {
+                            if (headers[j].tagName === 'H2') { foundH2 = headers[j].id; break; }
+                        }
+                        break;
+                    }
+                }
+                if (foundH2) {
+                    document.querySelectorAll('.top-nav-link').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === '#' + foundH2) link.classList.add('active');
+                    });
+                }
+            }
+        });
+        
+        if(tocList.firstChild) tocList.firstChild.querySelector('a').classList.add('active');
+        if(topNav && topNav.firstChild) topNav.firstChild.classList.add('active');
+    });
+</script>
+</body>
+</html>
