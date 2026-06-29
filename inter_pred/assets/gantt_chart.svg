@@ -1,0 +1,82 @@
+<svg viewBox="0 0 800 240" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" style="background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; font-family: sans-serif;">
+    <defs>
+        <marker id="arrowRed" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444" />
+        </marker>
+        <marker id="arrowGreen" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+        </marker>
+    </defs>
+
+    <!-- Title -->
+    <text x="400" y="25" font-size="14" font-weight="bold" fill="#334155" text-anchor="middle">硬件宏块级流水线甘特图 (Gantt Chart) 对比</text>
+
+    <!-- Standard (Bubble) -->
+    <text x="20" y="55" font-size="12" fill="#64748b">🔴 传统严苛标准：存在巨大气泡延迟 (Bubble)</text>
+    
+    <text x="20" y="80" font-size="12" font-weight="bold" fill="#475569">CTU (N)</text>
+    <!-- CTU N Standard -->
+    <rect x="90" y="65" width="120" height="22" fill="#3b82f6" rx="3" />
+    <text x="150" y="80" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MEMD</text>
+    
+    <rect x="212" y="65" width="120" height="22" fill="#8b5cf6" rx="3" />
+    <text x="272" y="80" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MEQN</text>
+    
+    <rect x="334" y="65" width="90" height="22" fill="#10b981" rx="3" />
+    <text x="379" y="80" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MC</text>
+    
+    <rect x="426" y="65" width="280" height="22" fill="#f59e0b" rx="3" />
+    <text x="566" y="80" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">RDO &amp; CABAC 重构结束</text>
+
+    <!-- Dependency Arrow Standard -->
+    <path d="M 700 87 L 700 105" stroke="#ef4444" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrowRed)" fill="none" />
+
+    <text x="20" y="110" font-size="12" font-weight="bold" fill="#475569">CTU (N+1)</text>
+    <!-- CTU N+1 Standard -->
+    <rect x="90" y="95" width="605" height="22" fill="#e2e8f0" rx="3" />
+    <text x="392" y="110" font-size="11" fill="#94a3b8" font-style="italic" text-anchor="middle">等待宏块 N 完全重构... (Stall Bubble)</text>
+    
+    <rect x="705" y="95" width="80" height="22" fill="#3b82f6" rx="3" />
+    <text x="745" y="110" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MEMD</text>
+
+
+    <!-- Optimized -->
+    <text x="20" y="155" font-size="12" font-weight="bold" fill="#16a34a">🟢 C-Model 优化后：通过 memdMvCtx 实现 100% 重叠并行</text>
+    
+    <text x="20" y="180" font-size="12" font-weight="bold" fill="#475569">CTU (N)</text>
+    <!-- CTU N Optimized -->
+    <rect x="90" y="165" width="120" height="22" fill="#3b82f6" rx="3" />
+    <text x="150" y="180" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MEMD 产生字典</text>
+    
+    <rect x="212" y="165" width="120" height="22" fill="#8b5cf6" rx="3" />
+    <text x="272" y="180" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MEQN</text>
+    
+    <rect x="334" y="165" width="90" height="22" fill="#10b981" rx="3" />
+    <text x="379" y="180" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MC</text>
+    
+    <rect x="426" y="165" width="340" height="22" fill="#f59e0b" rx="3" />
+    <text x="596" y="180" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">RDO &amp; CABAC 重构进行中...</text>
+
+    <!-- Dependency Arrow Optimized -->
+    <path d="M 200 187 L 200 205" stroke="#10b981" stroke-width="2" stroke-dasharray="4" marker-end="url(#arrowGreen)" fill="none" />
+
+    <text x="20" y="210" font-size="12" font-weight="bold" fill="#475569">CTU (N+1)</text>
+    <!-- CTU N+1 Optimized -->
+    <rect x="90" y="195" width="105" height="22" fill="#e2e8f0" rx="3" />
+    <text x="142" y="210" font-size="11" fill="#94a3b8" font-style="italic" text-anchor="middle">Wait</text>
+
+    <rect x="205" y="195" width="120" height="22" fill="#3b82f6" rx="3" />
+    <text x="265" y="210" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">读取字典启动MEMD</text>
+
+    <rect x="334" y="195" width="120" height="22" fill="#8b5cf6" rx="3" />
+    <text x="394" y="210" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MEQN</text>
+
+    <rect x="462" y="195" width="90" height="22" fill="#10b981" rx="3" />
+    <text x="507" y="210" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">MC</text>
+
+    <rect x="560" y="195" width="205" height="22" fill="#f59e0b" rx="3" />
+    <text x="662" y="210" font-size="11" fill="#fff" font-weight="bold" text-anchor="middle">RDO</text>
+
+    <text x="400" y="235" font-size="11" fill="#64748b" text-anchor="middle">* 通过旁路缓存机制，CTU (N+1) 无需等待 CTU (N) 漫长的重构，消除了 Bubble 时间。</text>
+
+</svg>

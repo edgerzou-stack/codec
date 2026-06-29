@@ -22,16 +22,6 @@ You can directly access the interactive online documentation via the following l
   - TMVP cross-frame MV scaling mechanism.
   - Hardware-aligned 3×3 nine-point diamond search grid.
 
-## 🛠️ Repository Philosophy
-
-This repository is designed to be **clean and purely web-facing**. We embrace the following principles:
-- **Only Track HTML:** We exclusively track `.html` output files in Git to keep the repository extremely clean. All intermediate scripts remain on the local machine.
-- **Zero Horizontal Scrolling:** All diagrams and tables are designed using a strict 100% relative width or dynamic dimensional sizing rule to ensure 0-drag readability across any display.
-- **Hardware UI/UX:** We bring modern Web UI principles (glassmorphism, dark mode, high-contrast alerts) into Hardware Specification viewing.
-
----
-*Maintained by the Core Architecture Team.*
-
 ### 🚀 2. [Inter RDO Architecture: Eradicating Step-Delay](https://edgerzou-stack.github.io/codec/inter_pred/html/inter_rdo_pipeline_optimization.html)
 - **Target Audience:** Hardware Architects, RTL Designers, Performance Engineers.
 - **Content:** A deep dive into the physical delay bottlenecks of Inter Fractional Interpolation and how to achieve concurrent RDO initialization.
@@ -40,3 +30,13 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
   - Row-level interleaving micro-architecture for time-multiplexed interpolation engines.
   - Sync-Fire Pred Buffer for staggered delay isolation.
   - Ultimate Data-Control path decoupling pipeline (Y-shape).
+
+## 🛠️ Repository Philosophy
+
+This repository is designed to be **clean and purely web-facing**. We embrace the following principles:
+- **Only Track HTML:** We exclusively track `.html` output files in Git to keep the repository extremely clean. All intermediate scripts remain on the local machine. (Note: SVGs in the assets directory are force-tracked for GitHub pages rendering).
+- **Zero Horizontal Scrolling:** All diagrams and tables are designed using a strict 100% relative width or dynamic dimensional sizing rule to ensure 0-drag readability across any display.
+- **Hardware UI/UX:** We bring modern Web UI principles (glassmorphism, dark mode, high-contrast alerts) into Hardware Specification viewing.
+
+---
+*Maintained by the Core Architecture Team.*
