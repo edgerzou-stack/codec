@@ -30,3 +30,9 @@ When writing or updating technical documentation (especially markdown or HTML do
 9. **Business Context Alignment**: Always tie abstract architectural formulas to their macro business scenarios (e.g., Live vs. VOD / ABR vs. CRF). Use distinct visual layouts (like flexbox badges) to enhance structural comprehension.
 
 10. **Graphviz Rendering Robustness**: Avoid using font-metric-dependent formatting (like `<b>` tags) or horizontal alignment when exact element sizing is critical in Graphviz DOT files. Favor vertical text stacking or `splines=polyline` for robust, overlap-free diagrams.
+
+11. **Language and Localization**: Default to writing all documentation in Simplified Chinese unless explicitly requested otherwise. Do not translate code, commands, register names, signal names, or file paths. If English technical terms are necessary, provide a Chinese explanation alongside them.
+
+12. **Explicit and Precise Expressions**: Ensure titles and body text use consistent Chinese semantics to avoid ambiguity. Always state conclusions, risks, and limitations explicitly rather than vaguely. When referencing numerical values, bit-widths, resolutions, or units, clearly specify the unit and any preconditions.
+
+13. **Strict C-Model & Hardware Adherence**: Documentation must strictly reflect the actual C-Model source code and hardware implementation mechanisms. Absolutely no speculation, generalization, or "textbook" assumptions. Avoid phrases like "standard practice" (标准做法), "usually" (通常来说), or exaggerations (成千上万个). Descriptions must be precise, objective, and rigorous.
