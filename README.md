@@ -31,4 +31,14 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
 - **Strict Objective Truth**: We reject subjective metaphors in favor of mathematically and physically rigorous documentation (per `doc-skills` specifications).
 
 ---
+
+## ⚖️ License & Copyright
+
+本仓库包含的架构文档、设计思路及配套代码均采用 **[CC BY-NC 4.0 (知识共享-署名-非商业性使用)](https://creativecommons.org/licenses/by-nc/4.0/)** 协议发布。
+
+- ✅ 允许个人学习、学术研究及开源技术交流。
+- ❌ **严格禁止**任何企业或个人将其直接或间接用于任何商业目的（包括但不限于商业芯片研发、企业内部培训、闭源软件开发等）。
+- 如需商业使用，请与作者联系获取单独授权。
+
+---
 *Maintained by the Codec Core Design Team.*
