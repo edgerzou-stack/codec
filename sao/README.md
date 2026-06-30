@@ -14,7 +14,7 @@ You can directly access the interactive online documentation via the following l
 
 ### 🌟 1. [C-Model SAO Architecture Dashboard](https://edgerzou-stack.github.io/cmodel-sao-doc/cmodel_sao_dashboard.html)
 - **Target Audience:** Algorithm Engineers, Software Developers, and Hardware Architects.
-- **Content:** An overview of the entire Sample Adaptive Offset (SAO) architecture, primarily focusing on HEVC/VVC standards as implemented in the KHEnc codebase.
+- **Content:** An overview of the entire Sample Adaptive Offset (SAO) architecture, primarily focusing on HEVC/VVC standards as implemented in the Video Codec codebase.
 - **Highlights:**
   - Auto-stretching, zero-drag Mermaid hierarchy graphs for SAO data flow.
   - Interactive sidebar navigation with glassmorphism UI elements.

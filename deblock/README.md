@@ -14,7 +14,7 @@ You can directly access the interactive online documentation via the following l
 
 ### 🌟 1. [C-Model Deblock Architecture Dashboard](https://edgerzou-stack.github.io/cmodel-deblock-doc/cmodel_deblock_dashboard.html)
 - **Target Audience:** Algorithm Engineers, Software Developers, and Hardware Architects.
-- **Content:** An overview of the entire C-Model Deblocking (去块滤波) architecture, primarily focusing on HEVC/VVC standards as implemented in the KHEnc codebase.
+- **Content:** An overview of the entire C-Model Deblocking (去块滤波) architecture, primarily focusing on HEVC/VVC standards as implemented in the Video Codec codebase.
 - **Highlights:**
   - Auto-stretching, zero-drag Mermaid hierarchy graphs for Boundary Strength (BS) decision logic.
   - Interactive sidebar navigation with glassmorphism UI elements.

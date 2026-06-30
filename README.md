@@ -41,4 +41,3 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
 - 如需商业使用，请与作者联系获取单独授权。
 
 ---
-*Maintained by the Codec Core Design Team.*
