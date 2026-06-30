@@ -20,6 +20,7 @@ You can directly access the documentation for each subsystem via the following l
 | 🔮 [**Intra Pred**](./intra_pred/README.md) | Spatial Prediction & Filtering | Core RTL, Algorithm |
 | 🧹 [**Deblock**](./deblock/README.md) | Deblocking Filter (DBF) | RTL Designers, Firmware |
 | 🎨 [**SAO**](./sao/README.md) | Sample Adaptive Offset | RTL Designers |
+| 📚 [**Doc Skills**](./doc_skills/README.md) | Interactive Doc Generation & Deployment | System Architects, RTL |
 
 ## 🛠️ Monorepo Philosophy
 
