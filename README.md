@@ -1,8 +1,6 @@
 # Video Codec Core Architecture Dashboards
 
-[![Architecture](https://img.shields.io/badge/Hardware-Architecture-3b82f6?style=for-the-badge)](#)
-[![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)](#)
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
 
 > **开源协议声明 (License & Copyright)**
 > 本仓库包含的架构文档、设计思路及配套代码均采用 **CC BY-NC 4.0 (知识共享-署名-非商业性使用)** 协议发布。
