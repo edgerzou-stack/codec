@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; padding: 20px; }
+        .wf-bar { 
+            position: absolute; 
+            box-sizing: border-box; 
+            border: 1.5px solid #1e293b; 
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.2); 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        .ctrl-marker { position: absolute; background: #0f172a; width: 4px; border-radius: 2px; box-shadow: 0 0 4px rgba(0,0,0,0.5); z-index: 10; }
+        .axis-label { position: absolute; font-size: 10px; color: #64748b; border-left: 1px dashed #cbd5e1; padding-left: 3px; top: 0; }
+        .row-container { position: relative; height: 45px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; }
+        .row-label { position: sticky; left: 0; width: 140px; background: rgba(255,255,255,0.95); font-weight: 600; font-size: 13px; z-index: 50; padding-left: 10px; border-right: 2px solid #cbd5e1; display: flex; align-items: center; height: 100%; box-shadow: 2px 0 5px rgba(0,0,0,0.02); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body>
+<div style="margin: 0 auto; max-width: 95vw; padding: 25px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+    <h3 style="text-align: center; color: #1e293b; margin-top: 0; margin-bottom: 5px;">CTU RDO 简化时序视图：双约束交替依赖 vs 理想并发解耦</h3>
+    <p style="text-align: center; color: #ef4444; font-size: 13px; font-weight: 600; margin-bottom: 25px;">约束1: 启动 Delay (大块等前2个小块完成) | 约束2: PK 屏障 (第5个CU8必须等前4个CU8和CU16完成)</p>
+    <div style="overflow-x: auto; padding-bottom: 20px; border: 1px solid #cbd5e1; background: #fafafa; border-radius: 4px;">
+        <div style="position: relative; min-width: 1000px;">
+            <div style="position: sticky; left: 160px; font-weight: 700; margin: 20px 0 10px 0; font-size: 15px; z-index: 60; padding: 5px 10px; background: #fff; border: 1px solid #ef4444; color: #ef4444; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block;">❌ 现状流水线：双重约束互相阻塞 (Delay + PK Barrier，总耗时 7680 clks)</div>
+            <div style="position: relative; height: 20px; border-bottom: 1px solid #cbd5e1; margin-bottom: 5px;">
+                <div class="axis-label" style="left: 150.0px; height: 100%;">T=0</div>
+                <div class="axis-label" style="left: 310.0px; height: 100%;">T=1000</div>
+                <div class="axis-label" style="left: 470.0px; height: 100%;">T=2000</div>
+                <div class="axis-label" style="left: 630.0px; height: 100%;">T=3000</div>
+                <div class="axis-label" style="left: 790.0px; height: 100%;">T=4000</div>
+                <div class="axis-label" style="left: 950.0px; height: 100%;">T=5000</div>
+                <div class="axis-label" style="left: 1110.0px; height: 100%;">T=6000</div>
+                <div class="axis-label" style="left: 1270.0px; height: 100%;">T=7000</div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #ef4444;">CU8 (64 组)</div>
+                <div class="ctrl-marker" style="left: 146.0px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 150.0px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 160.24px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 170.48px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 180.72px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 211.44px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 221.68px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 231.92000000000002px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 242.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 272.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 283.12px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 293.36px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 303.6px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 334.32px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 344.56px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 354.8px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 365.03999999999996px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 436.72px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 446.96px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 457.2px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 467.44px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 498.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 508.40000000000003px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 518.64px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 528.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 559.6px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 569.84px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 580.0799999999999px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 590.3199999999999px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 621.04px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 631.28px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 641.52px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 651.76px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 723.44px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 733.6800000000001px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 743.92px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 754.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 784.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 795.12px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 805.36px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 815.6px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 846.32px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 856.5600000000001px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 866.8000000000001px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 877.04px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 907.76px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 918.0px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 928.24px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 938.48px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1010.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1020.4px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1030.6399999999999px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1040.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1071.6px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1081.8400000000001px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1092.08px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1102.3200000000002px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1133.04px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1143.28px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1153.52px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1163.76px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1194.48px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1204.72px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1214.96px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 1225.2px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #f97316;">CU16 (16 组)</div>
+                <div class="ctrl-marker" style="left: 166.48px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 170.48px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 231.92000000000002px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 293.36px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 354.8px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 457.2px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 518.64px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 580.0799999999999px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 641.52px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 743.92px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 805.36px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 866.8000000000001px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 928.24px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 1030.6399999999999px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 1092.08px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 1153.52px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 1214.96px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #eab308;">CU32 (4 组)</div>
+                <div class="ctrl-marker" style="left: 268.88px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 272.88px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+                <div class="wf-bar" style="left: 559.6px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+                <div class="wf-bar" style="left: 846.32px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+                <div class="wf-bar" style="left: 1133.04px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #6366f1;">CU64 (1 组)</div>
+                <div class="ctrl-marker" style="left: 719.44px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 723.44px; width: 655.36px; height: 22px; top: 11px; background: #6366f1;"></div>
+            </div>
+            <div style="height: 40px;"></div>
+            <div style="position: sticky; left: 160px; font-weight: 700; margin: 20px 0 10px 0; font-size: 15px; z-index: 60; padding: 5px 10px; background: #fff; border: 1px solid #10b981; color: #10b981; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block;">🌟 理想流水线：彻底解耦，并发齐发无视屏障 (总耗时压降至 4096 clks)</div>
+            <div style="position: relative; height: 20px; border-bottom: 1px solid #cbd5e1; margin-bottom: 5px;">
+                <div class="axis-label" style="left: 150.0px; height: 100%;">T=0</div>
+                <div class="axis-label" style="left: 310.0px; height: 100%;">T=1000</div>
+                <div class="axis-label" style="left: 470.0px; height: 100%;">T=2000</div>
+                <div class="axis-label" style="left: 630.0px; height: 100%;">T=3000</div>
+                <div class="axis-label" style="left: 790.0px; height: 100%;">T=4000</div>
+                <div class="axis-label" style="left: 950.0px; height: 100%;">T=5000</div>
+                <div class="axis-label" style="left: 1110.0px; height: 100%;">T=6000</div>
+                <div class="axis-label" style="left: 1270.0px; height: 100%;">T=7000</div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #ef4444;">CU8 (64 组)</div>
+                <div class="ctrl-marker" style="left: 146.0px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 150.0px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 160.24px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 170.48px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 180.72px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 190.96px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 201.2px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 211.44px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 221.68px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 231.92000000000002px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 242.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 252.4px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 262.64px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 272.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 283.12px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 293.36px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 303.6px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 313.84000000000003px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 324.08000000000004px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 334.32px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 344.56px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 354.8px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 365.03999999999996px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 375.28px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 385.52px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 395.76px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 406.0px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 416.24px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 426.48px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 436.72px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 446.96px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 457.2px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 467.44px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 477.68px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 487.92px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 498.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 508.40000000000003px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 518.64px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 528.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 539.12px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 549.36px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 559.6px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 569.84px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 580.0799999999999px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 590.3199999999999px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 600.56px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 610.8px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 621.04px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 631.28px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 641.52px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 651.76px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 662.0px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 672.24px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 682.48px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 692.72px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 702.96px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 713.2px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 723.44px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 733.6800000000001px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 743.92px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 754.16px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 764.4px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 774.64px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 784.88px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+                <div class="wf-bar" style="left: 795.12px; width: 10.24px; height: 22px; top: 11px; background: #ef4444;"></div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #f97316;">CU16 (16 组)</div>
+                <div class="ctrl-marker" style="left: 146.0px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 150.0px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 190.96px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 231.92000000000002px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 272.88px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 313.84000000000003px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 354.8px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 395.76px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 436.72px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 477.68px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 518.64px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 559.6px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 600.56px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 641.52px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 682.48px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 723.44px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+                <div class="wf-bar" style="left: 764.4px; width: 40.96px; height: 22px; top: 11px; background: #f97316;"></div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #eab308;">CU32 (4 组)</div>
+                <div class="ctrl-marker" style="left: 146.0px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 150.0px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+                <div class="wf-bar" style="left: 313.84000000000003px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+                <div class="wf-bar" style="left: 477.68px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+                <div class="wf-bar" style="left: 641.52px; width: 163.84px; height: 22px; top: 11px; background: #eab308;"></div>
+            </div>
+            <div class="row-container">
+                <div class="row-label" style="color: #6366f1;">CU64 (1 组)</div>
+                <div class="ctrl-marker" style="left: 146.0px; height: 26px; top: 9px;" title="cu ctrl 首次抵达"></div>
+                <div class="wf-bar" style="left: 150.0px; width: 655.36px; height: 22px; top: 11px; background: #6366f1;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+</body></html>
