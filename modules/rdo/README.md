@@ -8,15 +8,15 @@ Welcome to the **Ultimate RDO Architecture Design** repository. This repository 
 
 All documentation is generated and hosted statically via GitHub Pages, ensuring an interactive, highly readable, and zero-drag "Geek Dashboard" experience for hardware engineers.
 
-## 📖 Live Document Links (GitHub Pages)
+## Live Document Links (GitHub Pages)
 
 You can directly access the interactive online documentation via the following links:
 
-### 🌟 1. [Top-Level Architecture Dashboard](https://edgerzou-stack.github.io/rdo-architecture/html/index.html)
+### 1. [Top-Level Architecture Dashboard](https://edgerzou-stack.github.io/rdo-architecture/html/index.html)
 - **Target Audience:** Architects, Project Managers, and System Engineers.
 - **Content:** An overview of the entire RDO Hardware Architecture Workflow (WF4, WF8, WF16, WF32, WF64) and high-level RDOQ budgets.
 
-### 🔬 2. [VVC RDO Transform Core Detailed Design](https://edgerzou-stack.github.io/rdo-architecture/html/vvc_rdo_transform_dashboard_interactive.html)
+### 2. [VVC RDO Transform Core Detailed Design](https://edgerzou-stack.github.io/rdo-architecture/html/vvc_rdo_transform_dashboard_interactive.html)
 - **Target Audience:** RTL Designers, Verification Engineers.
 - **Content:** The highly detailed design specification for the Transform Core Module.
 - **Highlights:**
@@ -25,7 +25,7 @@ You can directly access the interactive online documentation via the following l
   - Responsive dynamic hardware matrix tables (up to 32x32) perfectly scaled for the viewport.
   - Z-shaped interactive SVG hardware pipelines.
 
-###  3. [HMVP RDO Pipeline Optimization](https://edgerzou-stack.github.io/rdo-architecture/html/HMVP_RDO_Pipeline_Optimization.html)
+### 3. [HMVP RDO Pipeline Optimization](https://edgerzou-stack.github.io/rdo-architecture/html/HMVP_RDO_Pipeline_Optimization.html)
 - **Target Audience:** Core RDO Architects, RTL Designers.
 - **Content:** Deep architectural analysis breaking the strict algorithmic feedback loop of HMVP. Explains why "Pipelined Delayed Update" provides zero-bubble throughput and optimal BD-Rate.
 
@@ -39,7 +39,7 @@ You can directly access the interactive online documentation via the following l
 - **Chapter 2 — Hardware Optimization:** Pruning, Fast/Slow loop, static context, Two-Stage, Luma-Chroma bypass, 4×4 parallel decoupling
 - **Assets:** `rdoq_decision_tree.png`, `rdoq_dcost.png`, `rdoq_entropy_lut.png`, `rdoq_formula.png`, and supporting diagrams under `html/`
 
-### 🚀 5. [CABAC Intra/Inter Cost Hardware Parsing](https://edgerzou-stack.github.io/rdo-architecture/html/intra_inter_scabac_dashboard.html)
+### 5. [CABAC Intra/Inter Cost Hardware Parsing](https://edgerzou-stack.github.io/rdo-architecture/html/intra_inter_scabac_dashboard.html)
 - **Target Audience:** RTL Designers, Algorithm Engineers.
 - **Content:** Deep dive into HEVC Intra/Inter mode probability state machines, LUT lookups, and hardware architectures. 
 - **Highlights:**
@@ -56,7 +56,7 @@ You can directly access the interactive online documentation via the following l
   - Conceptual "Water Pipe and Reservoir" economic analogy for RC.
 
 
-## 🛠️ Repository Philosophy
+## Repository Philosophy
 
 This repository is designed to be **clean and purely web-facing**. We embrace the following principles:
 - **Only Track HTML:** We exclusively track `.html` output files in Git to keep the repository extremely clean. All intermediate Excel, Word, or Markdown scripts remain on the local machine.
@@ -70,8 +70,19 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
 
 ---
 
-## License & Copyright
 
+## Content Index
+
+| Item | Type | Description |
+|---|---|---|
+| `gen_flow.py` | **File** | Python Script / Logic |
+| `graph.dot` | **File** | Data / Resource File |
+| `graph_crf.dot` | **File** | Data / Resource File |
+| `html` | **Directory** | Submodule / Directory for html |
+
+---
+
+## License & Copyright
 > **开源协议声明 (License & Copyright)**
 > 本仓库包含的架构文档、设计思路及配套代码均采用 **CC BY-NC 4.0 (知识共享-署名-非商业性使用)** 协议发布。
 > 允许个人学习、学术研究及开源技术交流。**严格禁止任何企业或个人将其直接或间接用于任何商业目的**（包括但不限于商业芯片研发、企业内部培训、闭源软件开发等）。如需商业使用，请与作者联系获取单独授权。

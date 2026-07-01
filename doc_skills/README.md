@@ -11,7 +11,7 @@ Welcome to the **Doc Skills** repository.
 
 ---
 
-## 🚀 推荐工作流 (Workflow)
+## 推荐工作流 (Workflow)
 
 ```
 整理 / 合并 Skill 规则（Organization Skill）  ← 新增模块经验时先过一遍
@@ -25,7 +25,7 @@ Welcome to the **Doc Skills** repository.
 
 ---
 
-## 🛠️ 核心 Skill 矩阵 (Core Skills)
+## 核心 Skill 矩阵 (Core Skills)
 
 ### 0. [Doc Skills Organization Skill](Doc_Skills_Organization_Skill.md)
 **Skill 仓库本身怎么整理、合并、避免按模块越拆越乱。**
@@ -66,7 +66,7 @@ Welcome to the **Doc Skills** repository.
 
 ---
 
-## 🌟 参考成品展示 (Reference Dashboards)
+## 参考成品展示 (Reference Dashboards)
 
 | 文档名称 | 访问链接 |
 |------|------|
@@ -80,7 +80,7 @@ Welcome to the **Doc Skills** repository.
 
 ---
 
-##  给 AI 的指令示例
+## 给 AI 的指令示例
 
 > 按 **Organization Skill** 把 `{模块}` 文档经验合并进现有 Skill 的 §N，更新 README，删除独立模块 Skill 文件。
 
@@ -92,8 +92,21 @@ Welcome to the **Doc Skills** repository.
 
 ---
 
-## License & Copyright
 
+## Content Index
+
+| Item | Type | Description |
+|---|---|---|
+| `Doc_Formatting_Skill.md` | **File** | Data / Resource File |
+| `Doc_Skills_Organization_Skill.md` | **File** | Data / Resource File |
+| `Git_Documentation_Deployment_Skill.md` | **File** | Data / Resource File |
+| `Hardware_Algorithm_CoDesign_Skill.md` | **File** | Data / Resource File |
+| `Hardware_Interactive_Doc_Generation_Skill.md` | **File** | Data / Resource File |
+| `cmodel_strict_alignment_skill.md` | **File** | Data / Resource File |
+
+---
+
+## License & Copyright
 > **开源协议声明 (License & Copyright)**
 > 本仓库包含的架构文档、设计思路及配套代码均采用 **CC BY-NC 4.0 (知识共享-署名-非商业性使用)** 协议发布。
 > 允许个人学习、学术研究及开源技术交流。**严格禁止任何企业或个人将其直接或间接用于任何商业目的**（包括但不限于商业芯片研发、企业内部培训、闭源软件开发等）。如需商业使用，请与作者联系获取单独授权。

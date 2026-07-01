@@ -8,11 +8,11 @@ Welcome to the **C-Model SAO Architecture Design** repository. This repository s
 
 All documentation is generated and hosted statically via GitHub Pages, ensuring an interactive, highly readable, and zero-drag "Geek Dashboard" experience for algorithm engineers and developers.
 
-## 📖 Live Document Links (GitHub Pages)
+## Live Document Links (GitHub Pages)
 
 You can directly access the interactive online documentation via the following link:
 
-### 🌟 1. [C-Model SAO Architecture Dashboard](https://edgerzou-stack.github.io/cmodel-sao-doc/cmodel_sao_dashboard.html)
+### 1. [C-Model SAO Architecture Dashboard](https://edgerzou-stack.github.io/cmodel-sao-doc/cmodel_sao_dashboard.html)
 - **Target Audience:** Algorithm Engineers, Software Developers, and Hardware Architects.
 - **Content:** An overview of the entire Sample Adaptive Offset (SAO) architecture, primarily focusing on HEVC/VVC standards as implemented in the Video Codec codebase.
 - **Highlights:**
@@ -21,7 +21,7 @@ You can directly access the interactive online documentation via the following l
   - Native CSS spatial diagrams visualizing Band Offset (BO) 32-band divisions and Edge Offset (EO) 4-class edge logic.
   - Detailed mapping of the C-Model `sao` and `processSaoUnitPic` core logic to hardware implications.
 
-## 🛠️ Repository Philosophy
+## Repository Philosophy
 
 This repository is designed to be **clean and purely web-facing**. We embrace the following principles:
 - **Only Track HTML:** We exclusively track `.html` output files in Git to keep the repository extremely clean. All intermediate scripts or notes remain on the local machine.
@@ -34,8 +34,29 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
 
 ---
 
-## License & Copyright
 
+## Content Index
+
+| Item | Type | Description |
+|---|---|---|
+| `apply_auto_play.py` | **File** | Python Script / Logic |
+| `cabac_arch_diagram.svg` | **File** | Image / Architectural Diagram |
+| `cmodel_emc_dashboard.html` | **File** | Interactive HTML Dashboard |
+| `cmodel_sao_dashboard.html` | **File** | Interactive HTML Dashboard |
+| `fix_co_chapter.py` | **File** | Python Script / Logic |
+| `fix_layout.py` | **File** | Python Script / Logic |
+| `generate_cabac_arch_diagram.py` | **File** | Python Script / Logic |
+| `generate_coeff_anim.py` | **File** | Python Script / Logic |
+| `generate_range_anim.py` | **File** | Python Script / Logic |
+| `merge_chapters.py` | **File** | Python Script / Logic |
+| `refactor.py` | **File** | Python Script / Logic |
+| `refactor_final.py` | **File** | Python Script / Logic |
+| `remove_banners.py` | **File** | Python Script / Logic |
+| `update_bin_colors.py` | **File** | Python Script / Logic |
+
+---
+
+## License & Copyright
 > **开源协议声明 (License & Copyright)**
 > 本仓库包含的架构文档、设计思路及配套代码均采用 **CC BY-NC 4.0 (知识共享-署名-非商业性使用)** 协议发布。
 > 允许个人学习、学术研究及开源技术交流。**严格禁止任何企业或个人将其直接或间接用于任何商业目的**（包括但不限于商业芯片研发、企业内部培训、闭源软件开发等）。如需商业使用，请与作者联系获取单独授权。
