@@ -1,6 +1,6 @@
 # Assets
 
-Static Assets, SVG Diagrams, and Media Files.
+This directory holds the generated SVG diagrams and graphical assets illustrating the Intra Prediction spatial processing pipelines.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 

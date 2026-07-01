@@ -1,6 +1,6 @@
 # Scripts
 
-Utility Scripts and Data Generators.
+This directory holds the Python utility scripts used to generate SVG diagrams, timing Gantt charts, and RDO data flow visualizations for the Inter Prediction documentation.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 

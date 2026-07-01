@@ -1,6 +1,6 @@
-# Modules
+# Video Codec Modules
 
-Video Codec Hardware Modules Collection.
+This directory contains all the core hardware micro-architecture modules for the video codec. Each subdirectory represents a specific algorithm block (e.g., CABAC, Inter Prediction, Intra Prediction, Rate Control, RDO, SAO, Deblock), containing its own detailed architectural dashboards and assets.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 

@@ -1,6 +1,6 @@
 # Html
 
-Interactive HTML Dashboards and Visualizations.
+This directory contains interactive HTML documentation and analysis reports detailing the Inter Prediction architecture, including Motion Estimation/Compensation pipelines and RDO optimization strategies.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 

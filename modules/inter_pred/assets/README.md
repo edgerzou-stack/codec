@@ -1,6 +1,6 @@
 # Assets
 
-Static Assets, SVG Diagrams, and Media Files.
+This directory stores the generated static assets (such as SVG architecture diagrams, Gantt charts, and pipeline decoupling visuals) for the Inter Prediction module.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 

@@ -1,6 +1,6 @@
 # Html
 
-Interactive HTML Dashboards and Visualizations.
+This directory hosts the comprehensive suite of HTML dashboards for the Transform Core and Rate-Distortion Optimization (RDO) pipelines. It includes visualizations for MPM trees, MVD flows, and pipeline comparison animations.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
