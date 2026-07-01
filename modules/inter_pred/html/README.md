@@ -15,6 +15,7 @@ These HTML files are completely self-contained (HTML + JS + CSS) and require zer
 |---|---|---|
 | `inter_prediction_architecture.html` | **File** | Interactive web-based dashboard visualization. |
 | `inter_rdo_pipeline_optimization.html` | **File** | Interactive web-based dashboard visualization. |
+| `inter_rdo_timing_gantt.html` | **File** | Interactive web-based dashboard visualization. |
 
 
 ---

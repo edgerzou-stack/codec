@@ -14,6 +14,7 @@ Welcome to the **Inter Prediction Assets** directory. This directory stores the 
 | `diagram_3_buffer.svg` | **File** | Scalable Vector Graphics architectural diagram. |
 | `diagram_4_decoupling.svg` | **File** | Scalable Vector Graphics architectural diagram. |
 | `gantt_chart.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `inter_rdo_timing_gantt.png` | **File** | Static image asset. |
 | `me_rdo_handshake.svg` | **File** | Scalable Vector Graphics architectural diagram. |
 | `pyramid_search.svg` | **File** | Scalable Vector Graphics architectural diagram. |
 
