@@ -1,5 +1,8 @@
 # HEVC CABAC EMC Dashboard
 
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+
 ![Hardware Architecture](https://img.shields.io/badge/Hardware-Architecture-3b82f6?style=for-the-badge)
 ![HEVC CABAC](https://img.shields.io/badge/HEVC-CABAC_EMC-ec4899?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
@@ -31,3 +34,12 @@ Since this platform is a pure single-file frontend application (HTML + Vanilla J
 
 ---
 *Created and maintained by edgerzou-stack.*
+
+
+---
+
+## License & Copyright
+
+> **开源协议声明 (License & Copyright)**
+> 本仓库包含的架构文档、设计思路及配套代码均采用 **CC BY-NC 4.0 (知识共享-署名-非商业性使用)** 协议发布。
+> 允许个人学习、学术研究及开源技术交流。**严格禁止任何企业或个人将其直接或间接用于任何商业目的**（包括但不限于商业芯片研发、企业内部培训、闭源软件开发等）。如需商业使用，请与作者联系获取单独授权。

@@ -1,5 +1,8 @@
 # VVC RDO Architecture Design
 
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+
 ![Architecture](https://img.shields.io/badge/Hardware-Architecture-3b82f6?style=for-the-badge)
 ![VVC RDO](https://img.shields.io/badge/VVC-RDO_Transform-ec4899?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
@@ -25,7 +28,7 @@ You can directly access the interactive online documentation via the following l
   - Responsive dynamic hardware matrix tables (up to 32x32) perfectly scaled for the viewport.
   - Z-shaped interactive SVG hardware pipelines.
 
-### ⚡ 3. [HMVP RDO Pipeline Optimization](https://edgerzou-stack.github.io/rdo-architecture/html/HMVP_RDO_Pipeline_Optimization.html)
+###  3. [HMVP RDO Pipeline Optimization](https://edgerzou-stack.github.io/rdo-architecture/html/HMVP_RDO_Pipeline_Optimization.html)
 - **Target Audience:** Core RDO Architects, RTL Designers.
 - **Content:** Deep architectural analysis breaking the strict algorithmic feedback loop of HMVP. Explains why "Pipelined Delayed Update" provides zero-bubble throughput and optimal BD-Rate.
 
@@ -66,3 +69,12 @@ This repository is designed to be **clean and purely web-facing**. We embrace th
 
 ---
 *Maintained by the RDO Core Design Team.*
+
+
+---
+
+## License & Copyright
+
+> **开源协议声明 (License & Copyright)**
+> 本仓库包含的架构文档、设计思路及配套代码均采用 **CC BY-NC 4.0 (知识共享-署名-非商业性使用)** 协议发布。
+> 允许个人学习、学术研究及开源技术交流。**严格禁止任何企业或个人将其直接或间接用于任何商业目的**（包括但不限于商业芯片研发、企业内部培训、闭源软件开发等）。如需商业使用，请与作者联系获取单独授权。
