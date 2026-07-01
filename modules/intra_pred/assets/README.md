@@ -1,16 +1,16 @@
-# Assets
+# Intra Prediction Assets
 
-This directory holds the generated SVG diagrams and graphical assets illustrating the Intra Prediction spatial processing pipelines.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Intra Prediction Assets** directory. This directory holds the generated SVG diagrams and graphical assets illustrating the Intra Prediction spatial processing pipelines.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `diagram_8.svg` | 📄 File | Image / Architectural Diagram |
+| `diagram_8.svg` | **File** | Scalable Vector Graphics architectural diagram. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

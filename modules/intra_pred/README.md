@@ -3,9 +3,6 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 
-![Architecture](https://img.shields.io/badge/Hardware-Architecture-3b82f6?style=for-the-badge)
-![HEVC/VVC Intra](https://img.shields.io/badge/HEVC%2FVVC-Intra_Prediction-ec4899?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
 
 Welcome to the **Intra Prediction Architecture Design** repository. This centralized hub documents the core hardware design philosophies, pipeline optimizations, and algorithmic decoupling mechanisms for the Intra Prediction module.
 

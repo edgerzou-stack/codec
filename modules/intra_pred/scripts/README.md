@@ -1,16 +1,20 @@
-# Scripts
+# Intra Prediction Scripts
 
-This directory contains scripts responsible for generating architectural block diagrams (e.g., spatial prediction filtering flow) for the Intra Prediction module.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Intra Prediction Scripts** directory. This directory contains scripts responsible for generating architectural block diagrams (e.g., spatial prediction filtering flow) for the Intra Prediction module.
+
+## Usage
+
+These scripts are utility tools designed to be executed via standard Python 3.9+. Ensure your virtual environment is active before executing them.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `generate_diagram_8.py` | 📄 File | Python Script / Logic |
+| `generate_diagram_8.py` | **File** | Generates diagrams or HTML dashboard assets. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

@@ -1,16 +1,20 @@
-# Html
+# Rate Control Dashboards
 
-This directory hosts the interactive HTML dashboards and visualization artifacts specifically designed for the Rate Control (RC) and Virtual Buffer subsystems.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Rate Control Dashboards** directory. This directory hosts the interactive HTML dashboards and visualization artifacts specifically designed for the Rate Control (RC) and Virtual Buffer subsystems.
+
+## Live Document Links
+
+These HTML files are completely self-contained (HTML + JS + CSS) and require zero dependencies. You can simply double-click them in your file explorer to open them in any modern browser for a fully interactive experience.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `rate_control_dashboard.html` | 📄 File | Interactive HTML Dashboard |
+| `rate_control_dashboard.html` | **File** | Interactive web-based dashboard visualization. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

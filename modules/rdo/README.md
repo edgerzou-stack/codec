@@ -3,9 +3,6 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 
-![Architecture](https://img.shields.io/badge/Hardware-Architecture-3b82f6?style=for-the-badge)
-![VVC RDO](https://img.shields.io/badge/VVC-RDO_Transform-ec4899?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
 
 Welcome to the **Ultimate RDO Architecture Design** repository. This repository serves as a centralized hub for modern, web-based hardware design specifications and workflow dashboards. 
 

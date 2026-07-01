@@ -3,9 +3,6 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 
-![Hardware Architecture](https://img.shields.io/badge/Hardware-Architecture-3b82f6?style=for-the-badge)
-![HEVC CABAC](https://img.shields.io/badge/HEVC-CABAC_EMC-ec4899?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
 
 Welcome to the **HEVC CABAC EMC Dashboard** repository. This repository serves as a highly interactive, web-based visualization sandbox designed specifically to demystify the underlying hardware logic and arithmetic coding engine (CABAC) of the HEVC (H.265) video coding standard.
 

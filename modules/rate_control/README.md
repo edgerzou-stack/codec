@@ -3,8 +3,6 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 
-![Architecture](https://img.shields.io/badge/Architecture-Rate_Control-3b82f6?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
 
 Welcome to the **Rate Control Architecture Dashboard** repository. This repository hosts a specialized, interactive dashboard detailing the closed-loop Rate Control system for modern video encoders.
 

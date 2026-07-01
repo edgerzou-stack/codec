@@ -3,9 +3,6 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 
-![Doc Skills](https://img.shields.io/badge/Doc_Skills-Workflow-3b82f6?style=for-the-badge)
-![Web Dashboard](https://img.shields.io/badge/Web-Dashboard-ec4899?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
 
 Welcome to the **Doc Skills** repository. 
 面向硬件架构师 / RTL 工程师：从 Word/Excel 静态文档，迁移到 **零横向滚动、Git 版本化、可交互** 的 HTML Dashboard。

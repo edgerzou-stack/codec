@@ -1,19 +1,23 @@
-# Scripts
+# Inter Prediction Scripts
 
-This directory holds the Python utility scripts used to generate SVG diagrams, timing Gantt charts, and RDO data flow visualizations for the Inter Prediction documentation.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Inter Prediction Scripts** directory. This directory holds the Python utility scripts used to generate SVG diagrams, timing Gantt charts, and RDO data flow visualizations for the Inter Prediction documentation.
+
+## Usage
+
+These scripts are utility tools designed to be executed via standard Python 3.9+. Ensure your virtual environment is active before executing them.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `create_inter_svg.py` | 📄 File | Python Script / Logic |
-| `generate_rdo_diagrams.py` | 📄 File | Python Script / Logic |
-| `generate_timing_gantt.py` | 📄 File | Python Script / Logic |
-| `html_to_png.py` | 📄 File | Python Script / Logic |
+| `create_inter_svg.py` | **File** | Core logic or execution script. |
+| `generate_rdo_diagrams.py` | **File** | Generates diagrams or HTML dashboard assets. |
+| `generate_timing_gantt.py` | **File** | Generates diagrams or HTML dashboard assets. |
+| `html_to_png.py` | **File** | Core logic or execution script. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

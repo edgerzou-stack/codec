@@ -1,22 +1,22 @@
-# Video Codec Modules
+# Video Codec Hardware Modules
 
-This directory contains all the core hardware micro-architecture modules for the video codec. Each subdirectory represents a specific algorithm block (e.g., CABAC, Inter Prediction, Intra Prediction, Rate Control, RDO, SAO, Deblock), containing its own detailed architectural dashboards and assets.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Video Codec Hardware Modules** directory. This directory serves as the root container for all the core hardware micro-architecture modules comprising the video codec ecosystem.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `cabac` | 📁 Folder | Submodule / Directory for cabac |
-| `deblock` | 📁 Folder | Submodule / Directory for deblock |
-| `inter_pred` | 📁 Folder | Submodule / Directory for inter_pred |
-| `intra_pred` | 📁 Folder | Submodule / Directory for intra_pred |
-| `rate_control` | 📁 Folder | Submodule / Directory for rate_control |
-| `rdo` | 📁 Folder | Submodule / Directory for rdo |
-| `sao` | 📁 Folder | Submodule / Directory for sao |
+| `cabac` | **Directory** | Submodule or categorized directory for `cabac`. |
+| `deblock` | **Directory** | Submodule or categorized directory for `deblock`. |
+| `inter_pred` | **Directory** | Submodule or categorized directory for `inter_pred`. |
+| `intra_pred` | **Directory** | Submodule or categorized directory for `intra_pred`. |
+| `rate_control` | **Directory** | Submodule or categorized directory for `rate_control`. |
+| `rdo` | **Directory** | Submodule or categorized directory for `rdo`. |
+| `sao` | **Directory** | Submodule or categorized directory for `sao`. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

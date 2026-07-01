@@ -1,17 +1,21 @@
-# Html
+# Inter Prediction Dashboards
 
-This directory contains interactive HTML documentation and analysis reports detailing the Inter Prediction architecture, including Motion Estimation/Compensation pipelines and RDO optimization strategies.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Inter Prediction Dashboards** directory. This directory contains interactive HTML documentation and analysis reports detailing the Inter Prediction architecture, including Motion Estimation/Compensation pipelines and RDO optimization strategies.
+
+## Live Document Links
+
+These HTML files are completely self-contained (HTML + JS + CSS) and require zero dependencies. You can simply double-click them in your file explorer to open them in any modern browser for a fully interactive experience.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `inter_prediction_architecture.html` | 📄 File | Interactive HTML Dashboard |
-| `inter_rdo_pipeline_optimization.html` | 📄 File | Interactive HTML Dashboard |
+| `inter_prediction_architecture.html` | **File** | Interactive web-based dashboard visualization. |
+| `inter_rdo_pipeline_optimization.html` | **File** | Interactive web-based dashboard visualization. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

@@ -1,22 +1,22 @@
-# Assets
+# Inter Prediction Assets
 
-This directory stores the generated static assets (such as SVG architecture diagrams, Gantt charts, and pipeline decoupling visuals) for the Inter Prediction module.
 
-## 📂 Directory Contents
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
+
+Welcome to the **Inter Prediction Assets** directory. This directory stores the generated static assets (such as SVG architecture diagrams, Gantt charts, and pipeline decoupling visuals) for the Inter Prediction module.
+
+## Content Index
 
 | Item | Type | Description |
 |---|---|---|
-| `cu64_inter_inference_strategy.svg` | 📄 File | Image / Architectural Diagram |
-| `diagram_1_delay.svg` | 📄 File | Image / Architectural Diagram |
-| `diagram_3_buffer.svg` | 📄 File | Image / Architectural Diagram |
-| `diagram_4_decoupling.svg` | 📄 File | Image / Architectural Diagram |
-| `gantt_chart.svg` | 📄 File | Image / Architectural Diagram |
-| `me_rdo_handshake.svg` | 📄 File | Image / Architectural Diagram |
-| `pyramid_search.svg` | 📄 File | Image / Architectural Diagram |
+| `cu64_inter_inference_strategy.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `diagram_1_delay.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `diagram_3_buffer.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `diagram_4_decoupling.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `gantt_chart.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `me_rdo_handshake.svg` | **File** | Scalable Vector Graphics architectural diagram. |
+| `pyramid_search.svg` | **File** | Scalable Vector Graphics architectural diagram. |
 
----
-
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
 

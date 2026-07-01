@@ -3,9 +3,6 @@
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 
-![Architecture](https://img.shields.io/badge/Algorithm-Architecture-3b82f6?style=for-the-badge)
-![C-Model Deblock](https://img.shields.io/badge/C--Model-Deblock-ec4899?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-10b981?style=for-the-badge)
 
 Welcome to the **C-Model Deblock Architecture Design** repository. This repository serves as a centralized hub for modern, web-based C-model algorithm specifications and workflow dashboards.
 
