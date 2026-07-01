@@ -18,13 +18,13 @@ You can directly access the documentation for each subsystem via the following l
 
 | Module | Subsystem | Target Audience |
 |---|---|---|
-| [**Rate Control**](./rate_control/README.md) | Rate Control & Virtual Buffer | System Architects, Firmware |
-| [**RDO**](./rdo/README.md) | Transform Core & RDOQ Optimization | RDO Architects, RTL Designers |
-| [**CABAC**](./cabac/README.md) | HEVC/VVC Entropy Encoding | Algorithm Engineers, RTL |
-| [**Inter Pred**](./inter_pred/README.md) | Motion Estimation / Compensation | Core RTL, Verification |
-| [**Intra Pred**](./intra_pred/README.md) | Spatial Prediction & Filtering | Core RTL, Algorithm |
-| [**Deblock**](./deblock/README.md) | Deblocking Filter (DBF) | RTL Designers, Firmware |
-| [**SAO**](./sao/README.md) | Sample Adaptive Offset | RTL Designers |
+| [**Rate Control**](./modules/rate_control/README.md) | Rate Control & Virtual Buffer | System Architects, Firmware |
+| [**RDO**](./modules/rdo/README.md) | Transform Core & RDOQ Optimization | RDO Architects, RTL Designers |
+| [**CABAC**](./modules/cabac/README.md) | HEVC/VVC Entropy Encoding | Algorithm Engineers, RTL |
+| [**Inter Pred**](./modules/inter_pred/README.md) | Motion Estimation / Compensation | Core RTL, Verification |
+| [**Intra Pred**](./modules/intra_pred/README.md) | Spatial Prediction & Filtering | Core RTL, Algorithm |
+| [**Deblock**](./modules/deblock/README.md) | Deblocking Filter (DBF) | RTL Designers, Firmware |
+| [**SAO**](./modules/sao/README.md) | Sample Adaptive Offset | RTL Designers |
 | [**Doc Skills**](./doc_skills/README.md) | Interactive Doc Generation & Deployment | System Architects, RTL |
 
 ---
