@@ -2,6 +2,20 @@
 
 This directory contains all the core hardware micro-architecture modules for the video codec. Each subdirectory represents a specific algorithm block (e.g., CABAC, Inter Prediction, Intra Prediction, Rate Control, RDO, SAO, Deblock), containing its own detailed architectural dashboards and assets.
 
+## 📂 Directory Contents
+
+| Item | Type | Description |
+|---|---|---|
+| `cabac` | 📁 Folder | Submodule / Directory for cabac |
+| `deblock` | 📁 Folder | Submodule / Directory for deblock |
+| `inter_pred` | 📁 Folder | Submodule / Directory for inter_pred |
+| `intra_pred` | 📁 Folder | Submodule / Directory for intra_pred |
+| `rate_control` | 📁 Folder | Submodule / Directory for rate_control |
+| `rdo` | 📁 Folder | Submodule / Directory for rdo |
+| `sao` | 📁 Folder | Submodule / Directory for sao |
+
+---
+
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---

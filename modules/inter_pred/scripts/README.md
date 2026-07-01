@@ -2,6 +2,17 @@
 
 This directory holds the Python utility scripts used to generate SVG diagrams, timing Gantt charts, and RDO data flow visualizations for the Inter Prediction documentation.
 
+## 📂 Directory Contents
+
+| Item | Type | Description |
+|---|---|---|
+| `create_inter_svg.py` | 📄 File | Python Script / Logic |
+| `generate_rdo_diagrams.py` | 📄 File | Python Script / Logic |
+| `generate_timing_gantt.py` | 📄 File | Python Script / Logic |
+| `html_to_png.py` | 📄 File | Python Script / Logic |
+
+---
+
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---

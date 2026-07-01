@@ -2,6 +2,15 @@
 
 This directory contains interactive HTML documentation and analysis reports detailing the Inter Prediction architecture, including Motion Estimation/Compensation pipelines and RDO optimization strategies.
 
+## 📂 Directory Contents
+
+| Item | Type | Description |
+|---|---|---|
+| `inter_prediction_architecture.html` | 📄 File | Interactive HTML Dashboard |
+| `inter_rdo_pipeline_optimization.html` | 📄 File | Interactive HTML Dashboard |
+
+---
+
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---

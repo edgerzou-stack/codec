@@ -2,6 +2,14 @@
 
 This directory holds the generated SVG diagrams and graphical assets illustrating the Intra Prediction spatial processing pipelines.
 
+## 📂 Directory Contents
+
+| Item | Type | Description |
+|---|---|---|
+| `diagram_8.svg` | 📄 File | Image / Architectural Diagram |
+
+---
+
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---

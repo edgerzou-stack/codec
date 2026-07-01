@@ -2,6 +2,20 @@
 
 This directory stores the generated static assets (such as SVG architecture diagrams, Gantt charts, and pipeline decoupling visuals) for the Inter Prediction module.
 
+## 📂 Directory Contents
+
+| Item | Type | Description |
+|---|---|---|
+| `cu64_inter_inference_strategy.svg` | 📄 File | Image / Architectural Diagram |
+| `diagram_1_delay.svg` | 📄 File | Image / Architectural Diagram |
+| `diagram_3_buffer.svg` | 📄 File | Image / Architectural Diagram |
+| `diagram_4_decoupling.svg` | 📄 File | Image / Architectural Diagram |
+| `gantt_chart.svg` | 📄 File | Image / Architectural Diagram |
+| `me_rdo_handshake.svg` | 📄 File | Image / Architectural Diagram |
+| `pyramid_search.svg` | 📄 File | Image / Architectural Diagram |
+
+---
+
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---

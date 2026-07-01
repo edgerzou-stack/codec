@@ -2,6 +2,14 @@
 
 This directory hosts the interactive HTML dashboards and visualization artifacts specifically designed for the Rate Control (RC) and Virtual Buffer subsystems.
 
+## 📂 Directory Contents
+
+| Item | Type | Description |
+|---|---|---|
+| `rate_control_dashboard.html` | 📄 File | Interactive HTML Dashboard |
+
+---
+
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC_BY--NC_4.0-lightgrey.svg)](#)
 
 ---
